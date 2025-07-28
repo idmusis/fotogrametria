@@ -2,7 +2,7 @@
 # Autor Carlo Ralph De Musis
 # Versão: 0.84
 
-pacman::p_load(base64enc, jpeg, shiny, shinydashboard, cowplot, imager, MASS, MVN, deming, dplyr, ggplot2, tidyr, grid, hexbin)
+pacman::p_load(base64enc, jpeg, shiny, shinydashboard, cowplot, imager, MASS, MVN, deming, dplyr, ggplot2, tidyr, grid, hexbin, plotly, shinyBS)
 
 # Objetos ------------------------------------
 
@@ -139,12 +139,72 @@ ui <- dashboardPage(
       tabItem(
         tabName = "app1",
         fluidRow(
-          uiOutput("imgOutput"),
-          verbatimTextOutput("coordsTxt"),
+          tags$div(
+            style = "display: flex; align-items: center; gap: 8px;",
+            tags$h4("Imagem enviada"),
+            actionButton(
+              inputId = "ajuda_marcacao",
+              label = NULL,
+              icon = icon("info-circle"),
+              style = "background-color: transparent; border: none"
+            )
+          )
+        ),
+
+        fluidRow(
+          uiOutput("imgOutput")
+        ),
+
+        fluidRow(
+          verbatimTextOutput("coordsTxt")
+        ),
+  fluidRow(
+          # Resumo das estatísticas de regressão
+          tags$div(
+            style = "display: flex; align-items: center; gap: 8px;",
+            tags$h4("Resumo da Regressão"),
+            shinyBS::bsButton("ajuda_regressao", label = NULL, icon = icon("info-circle"), size = "extra-small")
+          ),
           verbatimTextOutput("regressaoTxt"),
           plotOutput("scatter_plot"),
           tableOutput("pixel_coords"),
-          downloadButton("download_data", "Download das Coordenadas")
+          downloadButton("download_data", "Download das Coordenadas"),
+          # Botões de ajuda
+          shinyBS::bsPopover(
+            id = "ajuda_regressao",
+            title = "Interpretação dos resultados",
+            content = paste0(
+              "<b>Equação:</b> Ajuste linear ortogonal entre os pontos marcados (y = a + bx).<br/>",
+              "<b>R²:</b> Mede o quanto a variação dos dados é explicada pela reta (0 a 1).<br/>",
+              "<b>AIC:</b> Critério de informação – menor valor indica melhor ajuste.<br/><br/>",
+              "<b>Teste de Mardia:</b> Verifica se os dados seguem distribuição normal bivariada:<br/>",
+              "✓ Normal = não há evidência contra a normalidade (p > 0.05).<br/>",
+              "✗ Não normal = evidência contra a normalidade (p ≤ 0.05) em assimetria (skew) ou curtose (kurt).<br/>",
+              "A verificação é feita separadamente para cada grupo de pontos (A–D)."
+            ),
+
+            trigger = "hover",
+            options = list(container = "body")
+          ),
+          shinyBS::bsPopover(
+            id = "ajuda_marcacao",
+            title = "Como marcar os pontos na imagem",
+            content = HTML(paste0(
+              "A imagem deve conter dois quadros (frames) da trajetória.<br/><br/>",
+              "Em cada quadro, marque dois pontos: a roda traseira e a roda dianteira.<br/><br/>",
+              "<b>Ordem recomendada de marcação:</b><br/>",
+              "• Roda traseira do 1º frame (A)<br/>",
+              "• Roda dianteira do 1º frame (B)<br/>",
+              "• Roda traseira do 2º frame (C)<br/>",
+              "• Roda dianteira do 2º frame (D)<br/><br/>",
+              "Ou na ordem inversa: D, C, B, A — desde que seja consistente.<br/><br/>",
+              "<b>Repita esse ciclo pelo menos 7 vezes</b> (total de 28 cliques),<br/>",
+              "para garantir que cada ponto tenha amostras suficientes para os testes estatísticos.<br/><br/>"
+            )),
+            placement = "right",
+            trigger = "click",
+            options = list(container = "body")
+          ),
         )
       ),
       tabItem(
