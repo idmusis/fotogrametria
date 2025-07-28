@@ -2,19 +2,7 @@
 # Autor Carlo Ralph De Musis
 # Versão: 0.84
 
-library(base64enc)
-library(jpeg)
-library(shiny)
-library(shinydashboard)
-library(cowplot)
-library(imager)
-library(MASS)
-library(MVN)
-library(deming)
-library(dplyr)
-library(ggplot2)
-library(tidyr)
-library(grid)
+pacman::p_load(base64enc, jpeg, shiny, shinydashboard, cowplot, imager, MASS, MVN, deming, dplyr, ggplot2, tidyr, grid, hexbin)
 
 # Objetos ------------------------------------
 # Gera repeticoes usando uma distribuicao normal bivariada
