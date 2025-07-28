@@ -5,6 +5,17 @@
 pacman::p_load(base64enc, jpeg, shiny, shinydashboard, cowplot, imager, MASS, MVN, deming, dplyr, ggplot2, tidyr, grid, hexbin)
 
 # Objetos ------------------------------------
+
+# Configurações de plots
+config_plotly <- function(p) {
+  plotly::config(p,
+    scrollZoom = FALSE,
+    locale = "pt-BR",
+    displaylogo = FALSE,
+    modeBarButtonsToRemove = c("select", "select2d", "lasso2d")
+  )
+}
+
 # Gera repeticoes usando uma distribuicao normal bivariada
 
 gerar_repeticoes <- function(dados_originais, repeticoes) {
@@ -139,10 +150,10 @@ ui <- dashboardPage(
       tabItem(
         tabName = "app2",
         fluidRow(
-          plotOutput("dispersaoCinza"),
-          plotOutput("scatterPlot"),
-          plotOutput("histogramPlot"),
-          plotOutput("histogramDistancia")
+          plotly::plotlyOutput("dispersaoCinza"),
+          plotly::plotlyOutput("scatterPlot"),
+          plotly::plotlyOutput("histogramPlot"),
+          plotly::plotlyOutput("histogramDistancia")
         )
       )
     )
@@ -281,7 +292,7 @@ server <- function(session, input, output) {
     aspect_ratio <- dimensoes_aux[1] / dimensoes_aux[2]
 
     # Plotar o gráfico com os valores de Y transformados
-    ggplot(dados, aes(x = x, y = y_mod)) +
+    p <- ggplot(dados, aes(x = x, y = y_mod)) +
       annotation_custom(imagem_grob, xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax) +
       geom_smooth(method = "lm", se = FALSE, linetype = "dashed", color = "black", alpha = 0.5, aes(group = 1)) +
       geom_point(aes(shape = ponto, color = ponto), size = 7, alpha = 0.5) +
@@ -290,7 +301,7 @@ server <- function(session, input, output) {
       scale_color_manual(values = c("red", "blue", "green", "purple")) +
       xlim(xmin, xmax) +
       ylim(ymin, ymax) +
-      theme_minimal() +
+      theme_minimal(base_size = 13) +
       coord_cartesian(xlim = c(xmin, xmax), ylim = c(ymin, ymax)) +
       theme(
         axis.text.x = element_blank(), axis.text.y = element_blank(),
@@ -298,6 +309,8 @@ server <- function(session, input, output) {
         legend.text = element_text(size = 14)
       ) +
       theme(aspect.ratio = aspect_ratio)
+
+    p
   })
 
   output$regressaoTxt <- renderText({
@@ -477,283 +490,297 @@ server <- function(session, input, output) {
 
       message("Processamento finalizado")
     })
-    ### Outputs --------------
-    #### Plotar o grafico de dispersao com cores identificando os grupos e series -----
-    output$dispersaoCinza <- renderPlot({
-      if (is.null(input$upload)) {
-        showNotification("Nenhuma imagem carregada.", type = "error")
-        return(NULL)
-      }
 
-      imagem <- input$upload$datapath
-      img <- tryCatch(
-        imager::load.image(imagem),
-        error = function(e) {
-          showNotification("Erro ao carregar a imagem.", type = "error")
+    withProgress(message = "Carregando gráficos...", value = 0, {
+      ### Outputs --------------
+      #### Plotar o grafico de dispersao com cores identificando os grupos e series -----
+      output$dispersaoCinza <- plotly::renderPlotly({
+        if (is.null(input$upload)) {
+          showNotification("Nenhuma imagem carregada.", type = "error")
           return(NULL)
         }
-      )
-      if (is.null(img)) {
-        return(NULL)
-      }
 
-      smoothed_img <- isoblur(img, sigma = input$dp)
-
-
-      temp_file <- tempfile(pattern = "aux", fileext = ".jpg")
-      imager::save.image(smoothed_img, temp_file)
-
-      if (!file.exists(temp_file)) {
-        showNotification("Falha ao gerar imagem temporária.", type = "error")
-        return(NULL)
-      }
-
-      imgData <<- tryCatch(
-        as.array(readJPEG(temp_file)),
-        error = function(e) {
-          showNotification("Erro ao ler imagem suavizada.", type = "error")
+        imagem <- input$upload$datapath
+        img <- tryCatch(
+          imager::load.image(imagem),
+          error = function(e) {
+            showNotification("Erro ao carregar a imagem.", type = "error")
+            return(NULL)
+          }
+        )
+        if (is.null(img)) {
           return(NULL)
         }
-      )
-      unlink(temp_file)
 
-      if (is.null(imgData)) {
-        return(NULL)
-      }
+        smoothed_img <- isoblur(img, sigma = input$dp)
 
-      dimensoes_aux <- dim(imgData)
 
-      # Criando um data.frame para armazenar os resultados
-      resultados <- data.frame(x = integer(), y = integer(), cinza = numeric())
+        temp_file <- tempfile(pattern = "aux", fileext = ".jpg")
+        imager::save.image(smoothed_img, temp_file)
 
-      # Regressão
-      regressao_deming <- deming(y ~ x, data = dados)
-
-      # Extraia os coeficientes
-      beta_0 <- coef(regressao_deming)[1] # Intercepto
-      beta_1 <- coef(regressao_deming)[2] # Inclinação
-
-      # Loop sobre os pixels
-      for (x_coord in 1:dimensoes_aux[2]) {
-        # Prever o valor de y usando os coeficientes da regressão
-        predito_y <- beta_0 + beta_1 * x_coord
-
-        # Se o y previsto estiver dentro das dimensões da imagem, extrair o valor de cinza
-        if (predito_y >= 1 & predito_y <= dimensoes_aux[1]) {
-          # O valor de cinza pode ser extraído da matriz da imagem
-          # Convertendo para cinza: utilizando a média dos 3 canais, se necessário
-          cinza <- mean(imgData[predito_y, x_coord, 1:3])
-
-          # Adicionando os resultados ao data.frame
-          resultados <- rbind(resultados, data.frame(x = x_coord, y = round(predito_y), cinza = cinza))
+        if (!file.exists(temp_file)) {
+          showNotification("Falha ao gerar imagem temporária.", type = "error")
+          return(NULL)
         }
-      }
-      # Usando a inclinação para calcular o ângulo de rotação
-      angulo <- -atan(beta_1)
-      resultados_rotacionados <- rotacionar_pontos(resultados[, c(1, 2)], angulo)
-      resultados$rot <- resultados_rotacionados$x
 
-      cg_aux <- cg
-      colnames(cg_aux) <- c("ponto", "x", "y")
-      cg_aux <- rotacionar_pontos(cg_aux[, c(2, 3)], angulo)
-      cg_aux <- cg_aux[, 1]
-      colnames(cg_aux) <- "rot"
-      cg_aux <- cg_aux %>%
-        arrange(rot) %>%
-        mutate(label = LETTERS[1:n()])
+        imgData <<- tryCatch(
+          as.array(readJPEG(temp_file)),
+          error = function(e) {
+            showNotification("Erro ao ler imagem suavizada.", type = "error")
+            return(NULL)
+          }
+        )
+        unlink(temp_file)
 
-      spline_data <- smooth.spline(resultados$rot, resultados$cinza, cv = TRUE)
-
-      p <- ggplot(resultados, aes(x = rot, y = cinza)) +
-        geom_point(size = 0.3, color = "black") +
-        geom_line(data = data.frame(x = spline_data$x, y = spline_data$y), aes(x = x, y = y), color = "blue") +
-        labs(
-          title = "Tom de cinza médio por abscissas rotacionadas",
-          x = "Abscissas rotacionadas",
-          y = "Tom de cinza"
-        ) +
-        geom_vline(data = cg_aux, aes(xintercept = rot), linetype = "dashed", color = "red") +
-        geom_text(data = cg_aux, aes(x = rot, label = label), vjust = 7, hjust = 1.5, size = 5, color = "red") +
-        theme_minimal()
-
-      message("plot dispersao_cinza finalizado")
-      p
-    })
-
-    #### Plotar o grafico de dispersao com cores identificando os grupos e series -------
-    output$scatterPlot <- renderPlot({
-      p <- ggplot(repeticoes_geradas_rotacionadas, aes(x = x, y = y)) +
-        geom_hex(bins = 120, aes(fill = ..count..)) +
-        scale_fill_gradient(name = "Frequencias", low = "gray", high = "black") +
-        geom_abline(intercept = intercepto, slope = inclinacao, color = "black") +
-        geom_point(data = centros_gravidade_rotacionados, aes(x = x, y = y), color = "lightblue", shape = 7, size = 1) +
-        geom_text(
-          data = centros_gravidade_rotacionados, aes(x = x, label = ponto),
-          vjust = -0.25, hjust = 1.5, size = 5, color = "red"
-        ) +
-        labs(x = "Abscissas rotacionadas", y = "Ordenadas rotacionadas") +
-        theme_minimal()
-
-      message("scatterplot finalizado")
-      p
-    })
-
-    #### Plot histograma -------
-    output$histogramPlot <- renderPlot({
-      # Histograma
-      # Ordenar os dados por 'serie' e 'ponto'
-      repeticoes_geradas <- repeticoes_geradas %>%
-        arrange(serie, ponto)
-
-      # Agrupar os dados por 'serie' e aplicar a funcao 'distancia' a cada grupo
-      resultados <<- repeticoes_geradas %>%
-        group_by(serie) %>%
-        summarise(Ax = x[1], Ay = y[1], Bx = x[2], By = y[2], Cx = x[3], Cy = y[3], Dx = x[4], Dy = y[4]) %>%
-        rowwise() %>%
-        mutate(distancia = distancia(Ax, Ay, Bx, By, Cx, Cy, Dx, Dy, l)) %>%
-        ungroup()
-
-      # Remove valores NA e calcula a velocidade
-      dt <- input$fim_quadro - input$inicio_quadro # Tempo entre os frames (s)
-      dt <- dt / 3600 # h
-
-      # Proteção contra NULL nos inputs
-      erro_medio_mt <- input$erro_medio_mt %||% 0
-      dp_erro_medio_mt <- input$dp_erro_medio_mt %||% 0
-
-      ruido <- tryCatch(
-        {
-          rnorm(1, mean = dt * erro_medio_mt, sd = abs(dt) * dp_erro_medio_mt) / 1000
-        },
-        error = function(e) {
-          showNotification("Erro ao gerar ruído aleatório", type = "error")
-          return(0)
+        if (is.null(imgData)) {
+          return(NULL)
         }
-      )
 
-      velocidade <- na.omit(resultados$distancia) / (dt + ruido)
+        dimensoes_aux <- dim(imgData)
 
-      # Media
-      media <- mean(velocidade)
+        # Criando um data.frame para armazenar os resultados
+        resultados <- data.frame(x = integer(), y = integer(), cinza = numeric())
 
-      # Percentis
-      percentis <- quantile(velocidade, c((1 - input$nc) / 2, 1 - (1 - input$nc) / 2))
+        # Regressão
+        regressao_deming <- deming(y ~ x, data = dados)
 
-      velocidade <- as.data.frame(velocidade)
-      names(velocidade) <- "v"
-      p1 <- ggplot(velocidade, aes(x = v)) +
-        geom_histogram(binwidth = 0.5, color = "black", fill = "lightgray") +
-        geom_vline(aes(xintercept = media), color = "blue", linetype = "dashed", linewidth = 0.5) +
-        geom_vline(aes(xintercept = percentis[1]), color = "red", linetype = "dashed", linewidth = 0.5) +
-        geom_vline(aes(xintercept = percentis[2]), color = "red", linetype = "dashed", linewidth = 0.5) +
-        annotate("text", x = media, y = Inf, label = paste(round(media, 1)), vjust = 2, color = "black", size = 5) +
-        annotate("text", x = percentis[1], y = Inf, label = paste(round(percentis[1], 1)), vjust = 3, color = "black", size = 5) +
-        annotate("text", x = percentis[2], y = Inf, label = paste(round(percentis[2], 1)), vjust = 3, color = "black", size = 5) +
-        labs(x = "Velocidade (km/h)", y = "Frequência") +
-        theme_minimal()
+        # Extraia os coeficientes
+        beta_0 <- coef(regressao_deming)[1] # Intercepto
+        beta_1 <- coef(regressao_deming)[2] # Inclinação
 
-      # Removendo o eixo x do histograma
-      p1 <- p1 + theme(axis.title.x = element_blank(), axis.text.x = element_blank(), axis.ticks.x = element_blank())
+        # Loop sobre os pixels
+        for (x_coord in 1:dimensoes_aux[2]) {
+          # Prever o valor de y usando os coeficientes da regressão
+          predito_y <- beta_0 + beta_1 * x_coord
 
-      # Criando o boxplot
-      p2 <- ggplot(velocidade, aes(x = v, y = 1)) +
-        geom_boxplot() +
-        labs(x = "Velocidade (km/h)", y = "Frequencia") +
-        theme_minimal() +
-        theme(
-          axis.text.y = element_blank(),
-          axis.ticks.y = element_blank(),
-          panel.grid.major = element_blank(),
-          panel.grid.minor = element_blank(),
-          axis.line.y = element_blank(),
-          axis.line.x = element_blank(),
-          axis.title.y = element_blank()
+          # Se o y previsto estiver dentro das dimensões da imagem, extrair o valor de cinza
+          if (predito_y >= 1 & predito_y <= dimensoes_aux[1]) {
+            # O valor de cinza pode ser extraído da matriz da imagem
+            # Convertendo para cinza: utilizando a média dos 3 canais, se necessário
+            cinza <- mean(imgData[predito_y, x_coord, 1:3])
+
+            # Adicionando os resultados ao data.frame
+            resultados <- rbind(resultados, data.frame(x = x_coord, y = round(predito_y), cinza = cinza))
+          }
+        }
+        # Usando a inclinação para calcular o ângulo de rotação
+        angulo <- -atan(beta_1)
+        resultados_rotacionados <- rotacionar_pontos(resultados[, c(1, 2)], angulo)
+        resultados$rot <- resultados_rotacionados$x
+
+        cg_aux <- cg
+        colnames(cg_aux) <- c("ponto", "x", "y")
+        cg_aux <- rotacionar_pontos(cg_aux[, c(2, 3)], angulo)
+        cg_aux <- cg_aux[, 1]
+        colnames(cg_aux) <- "rot"
+        cg_aux <- cg_aux %>%
+          arrange(rot) %>%
+          mutate(label = LETTERS[1:n()])
+
+        spline_data <- smooth.spline(resultados$rot, resultados$cinza, cv = TRUE)
+
+        p <- ggplot(resultados, aes(x = rot, y = cinza)) +
+          geom_point(size = 0.3, color = "black") +
+          geom_line(data = data.frame(x = spline_data$x, y = spline_data$y), aes(x = x, y = y), color = "blue") +
+          labs(
+            title = "Tom de cinza médio por abscissas rotacionadas",
+            x = "Abscissas rotacionadas",
+            y = "Tom de cinza"
+          ) +
+          geom_vline(data = cg_aux, aes(xintercept = rot), linetype = "dashed", color = "red") +
+          geom_text(data = cg_aux, aes(x = rot, label = label), vjust = 7, hjust = 1.5, size = 5, color = "red") +
+          theme_minimal(base_size = 13)
+
+        message("plot dispersao_cinza finalizado")
+        p %>%
+          plotly::ggplotly() %>%
+          config_plotly()
+      })
+
+      #### Plotar o grafico de dispersao com cores identificando os grupos e series -------
+      output$scatterPlot <- plotly::renderPlotly({
+        p <- ggplot(repeticoes_geradas_rotacionadas, aes(x = x, y = y)) +
+          geom_hex(bins = 120, aes(fill = ..count..)) +
+          scale_fill_gradient(name = "Frequencias", low = "gray", high = "black") +
+          geom_abline(intercept = intercepto, slope = inclinacao, color = "black") +
+          geom_point(data = centros_gravidade_rotacionados, aes(x = x, y = y), color = "lightblue", shape = 7, size = 1) +
+          geom_text(
+            data = centros_gravidade_rotacionados, aes(x = x, label = ponto),
+            vjust = -0.25, hjust = 1.5, size = 5, color = "red"
+          ) +
+          labs(x = "Abscissas rotacionadas", y = "Ordenadas rotacionadas") +
+          theme_minimal(base_size = 13)
+
+        message("scatterplot finalizado")
+        p %>%
+          plotly::ggplotly() %>%
+          config_plotly()
+      })
+
+      #### Plot histograma -------
+      output$histogramPlot <- plotly::renderPlotly({
+        # Histograma
+        # Ordenar os dados por 'serie' e 'ponto'
+        repeticoes_geradas <- repeticoes_geradas %>%
+          arrange(serie, ponto)
+
+        # Agrupar os dados por 'serie' e aplicar a funcao 'distancia' a cada grupo
+        resultados <<- repeticoes_geradas %>%
+          group_by(serie) %>%
+          summarise(Ax = x[1], Ay = y[1], Bx = x[2], By = y[2], Cx = x[3], Cy = y[3], Dx = x[4], Dy = y[4]) %>%
+          rowwise() %>%
+          mutate(distancia = distancia(Ax, Ay, Bx, By, Cx, Cy, Dx, Dy, l)) %>%
+          ungroup()
+
+        # Remove valores NA e calcula a velocidade
+        dt <- input$fim_quadro - input$inicio_quadro # Tempo entre os frames (s)
+        dt <- dt / 3600 # h
+
+        # Proteção contra NULL nos inputs
+        erro_medio_mt <- input$erro_medio_mt %||% 0
+        dp_erro_medio_mt <- input$dp_erro_medio_mt %||% 0
+
+        ruido <- tryCatch(
+          {
+            rnorm(1, mean = dt * erro_medio_mt, sd = abs(dt) * dp_erro_medio_mt) / 1000
+          },
+          error = function(e) {
+            showNotification("Erro ao gerar ruído aleatório", type = "error")
+            return(0)
+          }
         )
 
-      # Organizando os dois graficos em um unico plot
-      p <- plot_grid(p1, p2, ncol = 1, align = "v", axis = "l", rel_heights = c(6 / 7, 1 / 7))
-      message("plot de histograma finalizado")
-      p
-    })
+        velocidade <- na.omit(resultados$distancia) / (dt + ruido)
 
-    #### Plot histogramaDistancia ---------
-    output$histogramDistancia <- renderPlot({
-      deslocamento <- as.data.frame(resultados$distancia * 1000)
-      colnames(deslocamento) <- "d"
+        # Media
+        media <- mean(velocidade)
 
-      # Media
-      media <- mean(deslocamento$d, na.rm = TRUE)
+        # Percentis
+        percentis <- quantile(velocidade, c((1 - input$nc) / 2, 1 - (1 - input$nc) / 2))
 
-      # ECDF
-      ecdf_fun <- ecdf(deslocamento$d)
+        velocidade <- as.data.frame(velocidade)
+        names(velocidade) <- "v"
+        p1 <- ggplot(velocidade, aes(x = v)) +
+          geom_histogram(binwidth = 0.5, color = "black", fill = "lightgray") +
+          geom_vline(aes(xintercept = media), color = "blue", linetype = "dashed", linewidth = 0.5) +
+          geom_vline(aes(xintercept = percentis[1]), color = "red", linetype = "dashed", linewidth = 0.5) +
+          geom_vline(aes(xintercept = percentis[2]), color = "red", linetype = "dashed", linewidth = 0.5) +
+          annotate("text", x = media, y = Inf, label = paste(round(media, 1)), vjust = 2, color = "black", size = 5) +
+          annotate("text", x = percentis[1], y = Inf, label = paste(round(percentis[1], 1)), vjust = 3, color = "black", size = 5) +
+          annotate("text", x = percentis[2], y = Inf, label = paste(round(percentis[2], 1)), vjust = 3, color = "black", size = 5) +
+          labs(x = "Velocidade (km/h)", y = "Frequência") +
+          theme_minimal(base_size = 13)
 
-      # Percentil da média
-      percentil_media <- ecdf_fun(media)
+        # Removendo o eixo x do histograma
+        p1 <- p1 + theme(axis.title.x = element_blank(), axis.text.x = element_blank(), axis.ticks.x = element_blank())
 
-      # Percentis
-      percentil <- quantile(deslocamento$d,
-        c((1 - input$nc) / 2, 1 - (1 - input$nc) / 2),
-        na.rm = TRUE
-      )
+        # Criando o boxplot
+        p2 <- ggplot(velocidade, aes(x = v, y = 1)) +
+          geom_boxplot() +
+          labs(x = "Velocidade (km/h)", y = "Frequencia") +
+          theme_minimal(base_size = 13) +
+          theme(
+            axis.text.y = element_blank(),
+            axis.ticks.y = element_blank(),
+            panel.grid.major = element_blank(),
+            panel.grid.minor = element_blank(),
+            axis.line.y = element_blank(),
+            axis.line.x = element_blank(),
+            axis.title.y = element_blank()
+          )
 
-      p <- ggplot(deslocamento, aes(x = d)) +
-        stat_ecdf(geom = "line", colour = "blue", size = 1) +
-        geom_hline(
-          yintercept = percentil_media,
-          colour = "green",
-          linetype = "dashed",
-          size = 0.5
-        ) +
-        geom_hline(
-          yintercept = (1 - input$nc) / 2,
-          colour = "red",
-          linetype = "dashed",
-          size = 0.5
-        ) +
-        geom_hline(
-          yintercept = 1 - (1 - input$nc) / 2,
-          colour = "red",
-          linetype = "dashed",
-          size = 0.5
-        ) +
-        labs(
-          # title = "Ogiva de Galton do deslocamento",
-          x = "Deslocamento (m)",
-          y = "Frequência Acumulada"
-        ) +
-        theme_minimal()
+        # Organizando os dois graficos em um unico plot
+        # p <- plot_grid(p1, p2, ncol = 1, align = "v", axis = "l", rel_heights = c(6 / 7, 1 / 7))
 
-      p <- p + geom_text(
-        aes(
-          x = percentil[1], y = (1 - input$nc) / 2,
-          label = sprintf("%.2f", percentil[1])
-        ),
-        vjust = 0,
-        hjust = 0,
-        size = 5
-      )
+        g1 <- plotly::ggplotly(p1)
+        g2 <- plotly::ggplotly(p2)
 
-      p <- p + geom_text(
-        aes(
-          x = media, y = percentil_media,
-          label = sprintf("%.2f", media)
-        ),
-        vjust = 0,
-        hjust = 1,
-        size = 5
-      )
+        message("plot de histograma finalizado")
+        plotly::subplot(g1, g2, nrows = 2, shareX = TRUE, heights = c(0.8, 0.2), titleY = TRUE) %>%
+          config_plotly()
+      })
 
-      p <- p + geom_text(
-        aes(
-          x = percentil[2], y = 1 - (1 - input$nc) / 2,
-          label = sprintf("%.2f", percentil[2])
-        ),
-        vjust = 0,
-        hjust = 1,
-        size = 5
-      )
-      message("plot histogram_distance finalizado")
-      p
+      #### Plot histogramaDistancia ---------
+      output$histogramDistancia <- plotly::renderPlotly({
+        deslocamento <- as.data.frame(resultados$distancia * 1000)
+        colnames(deslocamento) <- "d"
+
+        # Media
+        media <- mean(deslocamento$d, na.rm = TRUE)
+
+        # ECDF
+        ecdf_fun <- ecdf(deslocamento$d)
+
+        # Percentil da média
+        percentil_media <- ecdf_fun(media)
+
+        # Percentis
+        percentil <- quantile(deslocamento$d,
+          c((1 - input$nc) / 2, 1 - (1 - input$nc) / 2),
+          na.rm = TRUE
+        )
+
+        p <- ggplot(deslocamento, aes(x = d)) +
+          stat_ecdf(geom = "line", colour = "blue", size = 1) +
+          geom_hline(
+            yintercept = percentil_media,
+            colour = "green",
+            linetype = "dashed",
+            size = 0.5
+          ) +
+          geom_hline(
+            yintercept = (1 - input$nc) / 2,
+            colour = "red",
+            linetype = "dashed",
+            size = 0.5
+          ) +
+          geom_hline(
+            yintercept = 1 - (1 - input$nc) / 2,
+            colour = "red",
+            linetype = "dashed",
+            size = 0.5
+          ) +
+          labs(
+            # title = "Ogiva de Galton do deslocamento",
+            x = "Deslocamento (m)",
+            y = "Frequência Acumulada"
+          ) +
+          theme_minimal(base_size = 13)
+
+        p <- p + geom_text(
+          aes(
+            x = percentil[1], y = (1 - input$nc) / 2,
+            label = sprintf("%.2f", percentil[1])
+          ),
+          vjust = 0,
+          hjust = 0,
+          size = 5
+        )
+
+        p <- p + geom_text(
+          aes(
+            x = media, y = percentil_media,
+            label = sprintf("%.2f", media)
+          ),
+          vjust = 0,
+          hjust = 1,
+          size = 5
+        )
+
+        p <- p + geom_text(
+          aes(
+            x = percentil[2], y = 1 - (1 - input$nc) / 2,
+            label = sprintf("%.2f", percentil[2])
+          ),
+          vjust = 0,
+          hjust = 1,
+          size = 5
+        )
+        message("plot histogram_distance finalizado")
+        p %>%
+          plotly::ggplotly() %>%
+          config_plotly()
+      })
     })
   })
 }
