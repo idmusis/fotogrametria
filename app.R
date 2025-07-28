@@ -317,25 +317,45 @@ server <- function(session, input, output) {
 
       grupos <- split(dados, dados$ponto)
 
-      resultados_mvn <- lapply(grupos, function(grupo) {
+      resultados_mvn <- lapply(seq_along(grupos), function(i) {
+        grupo <- grupos[[i]]
+        letra <- LETTERS[i]
+
         mvn_result <- try(
           MVN::mvn(
             data = grupo[, c("x", "y")],
-            mvn_test = "doornik_hansen"
+            mvn_test = "mardia"
           ),
-          silent = FALSE
+          silent = TRUE
         )
+
         if (inherits(mvn_result, "try-error")) {
-          return("-")
+          return(paste0(letra, " - Erro no teste"))
         } else {
-          return(paste0(mvn_result$multivariate_normality$p.value, " (",mvn_result$multivariate_normality$MVN, ")"))
+          skew <- mvn_result$multivariate_normality[1, ]
+          kurt <- mvn_result$multivariate_normality[2, ]
+
+          skew_p <- as.numeric(skew$p.value)
+          kurt_p <- as.numeric(kurt$p.value)
+
+          normal <- if (skew_p > 0.05 & kurt_p > 0.05) "✓ Normal" else "✗ Não normal"
+
+          return(
+            paste0(
+              letra, " - ", normal,
+              " (Skew = ", formatC(skew_p, digits = 3, format = "f"),
+              "; Kurt = ", formatC(kurt_p, digits = 3, format = "f"), ")"
+            )
+          )
         }
       })
 
-      paste(eq,
+      paste(
+        eq,
         r2,
         aic,
-        paste("Teste de Doornik-Hansen (por grupo): ", paste0(resultados_mvn, collapse = "")),
+        "Teste de Mardia (por grupo):",
+        paste(resultados_mvn, collapse = "\n"),
         sep = "\n"
       )
     }
