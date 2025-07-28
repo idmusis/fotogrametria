@@ -361,27 +361,25 @@ server <- function(session, input, output) {
   ## Lógica da segunda aba --------------
 
   dataInput <- reactive({
+    req(input$arq)
     inFile <- input$arq
-    if (is.null(inFile)) {
-      return(NULL)
-    }
     read.csv(inFile$datapath, header = TRUE)
   })
 
   observeEvent(input$calcular_botao, {
-    if (!exists('dados') || (nrow(dados)<5)) {
-      dados <- dataInput()
-      if (is.null(dados) || (nrow(dados)<5)) {
-        return(NULL)
-      } else if (!("x" %in% names(dados)) | !("y" %in% names(dados))) {
-        return(print(dados))
-      }}
+    dados <- coords()
 
-    progress <- Progress$new(session, min=1, max=15)
-    on.exit(progress$close())
+    # Se não tiver pontos marcados suficientes, tenta carregar o CSV
+    if (is.null(dados) || nrow(dados) < 5) {
+      dados_csv <- tryCatch(dataInput(), error = function(e) NULL)
+      if (!is.null(dados_csv) && all(c("x", "y", "ponto") %in% names(dados_csv))) {
+        dados <- dados_csv
+      } else {
+        showNotification("Dados ausentes. Marque pontos ou envie um CSV.", type = "error")
+        return()
+      }
+    }
 
-    progress$set(message = 'Cálculo em progresso:',
-                 detail = 'aguarde um momento...')
 
     # Gráfico de dispersão
 
