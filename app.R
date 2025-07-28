@@ -380,6 +380,7 @@ server <- function(session, input, output) {
       }
     }
 
+    withProgress(message = "Cálculo em progresso...", value = 0, {
 
     # Gráfico de dispersão
 
@@ -444,17 +445,57 @@ server <- function(session, input, output) {
                                                    levels = 1:4,
                                                    labels = c("A", "B", "C", "D"))
 
+    message("Processamento finalizado")
+    })
     ### Outputs --------------
-    # Plotar o grafico de dispersao com cores identificando os grupos e series
+    #### Plotar o grafico de dispersao com cores identificando os grupos e series -----
     output$dispersaoCinza <- renderPlot({
-      imagem <- input$upload
-      img <- imager::load.image(imagem$datapath)
+
+      if (is.null(input$upload)) {
+        showNotification("Nenhuma imagem carregada.", type = "error")
+        return(NULL)
+      }
+
+      imagem <- input$upload$datapath
+      img <- tryCatch(
+        imager::load.image(imagem),
+        error = function(e) {
+          showNotification("Erro ao carregar a imagem.", type = "error")
+          return(NULL)
+        }
+      )
+      if (is.null(img)) return(NULL)
+
+
+      # imagem <- input$upload
+      # img <- imager::load.image(imagem$datapath)
       smoothed_img <- isoblur(img, sigma = input$dp)
+
 
       temp_file <- tempfile(pattern = "aux", fileext = ".jpg")
       imager::save.image(smoothed_img, temp_file)
-      imgData <<- as.array(readJPEG(temp_file))
+
+      if (!file.exists(temp_file)) {
+        showNotification("Falha ao gerar imagem temporária.", type = "error")
+        return(NULL)
+      }
+
+      imgData <<- tryCatch(
+        as.array(readJPEG(temp_file)),
+        error = function(e) {
+          showNotification("Erro ao ler imagem suavizada.", type = "error")
+          return(NULL)
+        }
+      )
       unlink(temp_file)
+
+      if (is.null(imgData)) return(NULL)
+      #
+      #
+      # temp_file <- tempfile(pattern = "aux", fileext = ".jpg")
+      # imager::save.image(smoothed_img, temp_file)
+      # imgData <<- as.array(readJPEG(temp_file))
+      # unlink(temp_file)
 
       dimensoes_aux <- dim(imgData)
 
@@ -500,7 +541,8 @@ server <- function(session, input, output) {
         mutate(label = LETTERS[1:n()])
 
       spline_data <- smooth.spline(resultados$rot, resultados$cinza, cv = TRUE)
-      ggplot(resultados, aes(x=rot, y=cinza)) +
+
+      p <- ggplot(resultados, aes(x=rot, y=cinza)) +
         geom_point(size=0.3, color="black") +
         geom_line(data = data.frame(x = spline_data$x, y = spline_data$y), aes(x=x, y=y), color="blue") +
         labs(title="Tom de cinza médio por abscissas rotacionadas",
@@ -509,11 +551,14 @@ server <- function(session, input, output) {
         geom_vline(data=cg_aux, aes(xintercept=rot), linetype="dashed", color="red") +
         geom_text(data=cg_aux, aes(x=rot, label=label), vjust=7, hjust=1.5, size = 5, color="red") +
         theme_minimal()
+
+      message ("plot dispersao_cinza finalizado")
+      p
     })
 
-    # Plotar o grafico de dispersao com cores identificando os grupos e series
+    #### Plotar o grafico de dispersao com cores identificando os grupos e series -------
     output$scatterPlot <- renderPlot({
-      ggplot(repeticoes_geradas_rotacionadas, aes(x = x, y = y)) +
+      p<- ggplot(repeticoes_geradas_rotacionadas, aes(x = x, y = y)) +
         geom_hex(bins = 120, aes(fill = ..count..)) +
         scale_fill_gradient(name = "Frequencias", low = "gray", high = "black") +
         geom_abline(intercept = intercepto, slope = inclinacao, color = "black") +
@@ -522,8 +567,12 @@ server <- function(session, input, output) {
                   vjust = -0.25, hjust = 1.5, size = 5, color = "red") +
         labs(x = "Abscissas rotacionadas", y = "Ordenadas rotacionadas") +
         theme_minimal()
+
+      message ("scatterplot finalizado")
+      p
     })
 
+    #### Plot histograma -------
     output$histogramPlot <- renderPlot({
       # Histograma
       # Ordenar os dados por 'serie' e 'ponto'
@@ -542,9 +591,22 @@ server <- function(session, input, output) {
       dt <-  input$fim_quadro - input$inicio_quadro # Tempo entre os frames (s)
       dt <-  dt/3600 # h
       # velocidade <- na.omit(resultados$distancia)/dt
-      velocidade <- na.omit(resultados$distancia)/(dt+
-                            rnorm(1, mean = dt*input$erro_medio_mt,
-                                     sd = abs(dt)*input$dp_erro_medio_mt)/1000)
+      # velocidade <- na.omit(resultados$distancia)/(dt+
+      #                       rnorm(1, mean = dt*input$erro_medio_mt,
+      #                                sd = abs(dt)*input$dp_erro_medio_mt)/1000)
+
+      # Proteção contra NULL nos inputs
+      erro_medio_mt <- input$erro_medio_mt %||% 0
+      dp_erro_medio_mt <- input$dp_erro_medio_mt %||% 0
+
+      ruido <- tryCatch({
+        rnorm(1, mean = dt * erro_medio_mt, sd = abs(dt) * dp_erro_medio_mt) / 1000
+      }, error = function(e) {
+        showNotification("Erro ao gerar ruído aleatório", type = "error")
+        return(0)
+      })
+
+      velocidade <- na.omit(resultados$distancia) / (dt + ruido)
 
       # Media
       media <- mean(velocidade)
@@ -583,6 +645,7 @@ server <- function(session, input, output) {
 
       # Organizando os dois graficos em um unico plot
       p <- plot_grid(p1, p2, ncol = 1, align = "v", axis = "l", rel_heights = c(6/7, 1/7))
+      message("plot de histograma finalizado")
       p
 
     })
@@ -643,11 +706,13 @@ server <- function(session, input, output) {
                        vjust = 0,
                        hjust = 1,
                        size = 5)
+    message("plot histogram_distance finalizado")
     p
 
   })
 
   })
+
 }
 
 # Execute a aplicação Shiny
