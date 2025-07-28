@@ -8,13 +8,13 @@ pacman::p_load(base64enc, jpeg, shiny, shinydashboard, cowplot, imager, MASS, MV
 # Gera repeticoes usando uma distribuicao normal bivariada
 
 gerar_repeticoes <- function(dados_originais, repeticoes) {
-  grupos <- unique(dados_originais$ponto)  # Identificar os grupos de pontos
-  repeticoes_geradas <- list()  # Lista para armazenar as repeticoes
+  grupos <- unique(dados_originais$ponto) # Identificar os grupos de pontos
+  repeticoes_geradas <- list() # Lista para armazenar as repeticoes
 
   for (grupo in grupos) {
-    dados_grupo <- dados_originais[dados_originais$ponto == grupo, ]  # Dados do grupo atual
-    media <- colMeans(dados_grupo[, c("x", "y")])  # Media do grupo atual
-    matriz_cov <- cov(dados_grupo[, c("x", "y")])  # Matriz de covariancia do grupo atual
+    dados_grupo <- dados_originais[dados_originais$ponto == grupo, ] # Dados do grupo atual
+    media <- colMeans(dados_grupo[, c("x", "y")]) # Media do grupo atual
+    matriz_cov <- cov(dados_grupo[, c("x", "y")]) # Matriz de covariancia do grupo atual
 
     repeticoes_grupo <- lapply(1:repeticoes, function(i) {
       repeticao <- mvrnorm(1, mu = media, Sigma = matriz_cov)
@@ -38,7 +38,7 @@ hex_cinza <- function(hex_colors) {
     rgb <- col2rgb(hex_color)
 
     # Converte RGB para cinza usando a fórmula de luminosidade
-    cinza <- (rgb[1,] + rgb[2,] + rgb[3,])/3
+    cinza <- (rgb[1, ] + rgb[2, ] + rgb[3, ]) / 3
 
     return(round(cinza))
   }, USE.NAMES = FALSE)
@@ -50,19 +50,19 @@ hex_cinza <- function(hex_colors) {
 
 # Calculo da distancia
 distancia <- function(Ax, Ay, Bx, By, Cx, Cy, Dx, Dy, l) {
-  A <- complex(real = Ax, imaginary =Ay)
-  B <- complex(real = Bx, imaginary =By)
-  C <- complex(real = Cx, imaginary =Cy)
-  D <- complex(real = Dx, imaginary =Dy)
+  A <- complex(real = Ax, imaginary = Ay)
+  B <- complex(real = Bx, imaginary = By)
+  C <- complex(real = Cx, imaginary = Cy)
+  D <- complex(real = Dx, imaginary = Dy)
 
   dAC <- C - A
   dBC <- C - B
   dAD <- D - A
   dBD <- D - B
 
-  k <- (dAC/dBC)/(dAD/dBD)
+  k <- (dAC / dBC) / (dAD / dBD)
 
-  d_c <- sqrt(k/(k-1)*l^2)
+  d_c <- sqrt(k / (k - 1) * l^2)
   d <- sqrt(Re(d_c)^2 + Im(d_c)^2)
 
   return(d)
@@ -93,9 +93,10 @@ ui <- dashboardPage(
     conditionalPanel(
       condition = "input.tabs === 'app1'",
       fileInput("upload", "Escolha uma Imagem",
-                buttonLabel = "Selecione...",
-                placeholder = "Nenhum arquivo selecionado",
-                accept = c("image/jpeg")),
+        buttonLabel = "Selecione...",
+        placeholder = "Nenhum arquivo selecionado",
+        accept = c("image/jpeg")
+      ),
       actionButton("apagar_botao", "Apagar último ponto"),
       actionButton("apagar_tudo", "Apagar tudo"),
     ),
@@ -106,20 +107,19 @@ ui <- dashboardPage(
       sliderInput("dp", "Filtro gaussiano isotrópico, desvio padrão:", min = 0, max = 100, value = 0, step = 1),
       tags$hr(),
       fileInput("arq", "Arquivo com coordenadas dos pontos (apenas se não os gerou na outra aba):",
-                buttonLabel = "Selecione...",
-                placeholder = "Nenhum arquivo selecionado",
-                accept = c("text/csv", "text/comma-separated-values,text/plain", ".csv")),
+        buttonLabel = "Selecione...",
+        placeholder = "Nenhum arquivo selecionado",
+        accept = c("text/csv", "text/comma-separated-values,text/plain", ".csv")
+      ),
       numericInput("inicio_quadro", "Marcação temporal do quadro inicial (s):", value = 1.266, min = 0),
       numericInput("fim_quadro", "Marcação temporal do quadro final (s):", value = 1.866, min = 0),
       numericInput("erro_medio_mt", "Erro médio da marcação temporal (ms/s):", value = 0.881, min = 0.01, max = 5),
       numericInput("dp_erro_medio_mt", "DP do erro médio da marcação temporal (ms/s):", value = 0.287, min = 0.01, max = 5),
-
       numericInput("dist_referencia", "Distância de referência (mm):", value = 2002, min = 0.01),
       tags$hr(),
       numericInput("rep_mc", "Número de repetições pelo MMC:", value = 100, min = 1, max = 10000),
       numericInput("nc", "Nível de confiança:", value = 0.99, min = 0.00001, max = 0.99999),
       actionButton("calcular_botao", "Calcular!"),
-
     )
   ),
   dashboardBody(
@@ -134,8 +134,6 @@ ui <- dashboardPage(
           plotOutput("scatter_plot"),
           tableOutput("pixel_coords"),
           downloadButton("download_data", "Download das Coordenadas")
-
-
         )
       ),
       tabItem(
@@ -153,7 +151,6 @@ ui <- dashboardPage(
 
 # Servidor ---------------------------------
 server <- function(session, input, output) {
-
   dimensoes <<- NULL
   imgData <<- NULL
   dados <<- NULL
@@ -178,13 +175,13 @@ server <- function(session, input, output) {
   observeEvent(input$apagar_tudo, {
     coords(data.frame(ponto = integer(0), x = numeric(0), y = numeric(0), cor = character(0), cinza = numeric(0), outlier = character(0)))
     imgData <<- NULL
-      if (file.exists(input$upload$datapath)) {
-        for (i in 1:7) {
-          file_size <- file.info(input$upload$datapath)$size  # Obtém o tamanho do arquivo em bytes
-          writeBin(as.raw(runif(file_size, min=0, max=255)), input$upload$datapath)
-        }
-        file.remove(input$upload$datapath)
+    if (file.exists(input$upload$datapath)) {
+      for (i in 1:7) {
+        file_size <- file.info(input$upload$datapath)$size # Obtém o tamanho do arquivo em bytes
+        writeBin(as.raw(runif(file_size, min = 0, max = 255)), input$upload$datapath)
       }
+      file.remove(input$upload$datapath)
+    }
     imgStore(NULL)
   })
 
@@ -203,22 +200,21 @@ server <- function(session, input, output) {
     new_coords <- data.frame(ponto = point_in_cycle, x = click[1], y = click[2], cor = clicked_color_hex, cinza = clicado_cinza)
 
     # Determina se o ponto é um outlier em y
-    if (nrow(coords()[coords()$ponto==new_coords$ponto,]) > 5) {
-      Q1y <- quantile(coords()[coords()$ponto==new_coords$ponto,]$y, 0.25)
-      Q3y <- quantile(coords()[coords()$ponto==new_coords$ponto,]$y, 0.75)
+    if (nrow(coords()[coords()$ponto == new_coords$ponto, ]) > 5) {
+      Q1y <- quantile(coords()[coords()$ponto == new_coords$ponto, ]$y, 0.25)
+      Q3y <- quantile(coords()[coords()$ponto == new_coords$ponto, ]$y, 0.75)
       IQRy <- Q3y - Q1y
 
-      Q1x <- quantile(coords()[coords()$ponto==new_coords$ponto,]$x, 0.25)
-      Q3x <- quantile(coords()[coords()$ponto==new_coords$ponto,]$x, 0.75)
+      Q1x <- quantile(coords()[coords()$ponto == new_coords$ponto, ]$x, 0.25)
+      Q3x <- quantile(coords()[coords()$ponto == new_coords$ponto, ]$x, 0.75)
       IQRx <- Q3x - Q1x
 
       if ((click[2] < Q1y - 1.5 * IQRy || click[2] > Q3y + 1.5 * IQRy) ||
-          (click[1] < Q1x - 1.5 * IQRx || click[1] > Q3x + 1.5 * IQRx)) {
+        (click[1] < Q1x - 1.5 * IQRx || click[1] > Q3x + 1.5 * IQRx)) {
         new_coords$outlier <- "Sim"
       } else {
         new_coords$outlier <- "Não"
       }
-
     } else {
       new_coords$outlier <- "Calibração"
     }
@@ -228,19 +224,23 @@ server <- function(session, input, output) {
 
   output$coordsTxt <- renderText({
     dados <<- coords()
-    dados$ponto <- factor(dados$ponto, levels = c(1, 2, 3, 4), labels = c('A', 'B', 'C', 'D'))
+    dados$ponto <- factor(dados$ponto, levels = c(1, 2, 3, 4), labels = c("A", "B", "C", "D"))
 
     last_coord <- tail(dados, 1)
-    if (nrow(last_coord) == 0) return("-") else
-       paste("Dimensões: ", dimensoes, ", Ponto", last_coord$ponto, ", X:", last_coord$x, ", Y:", last_coord$y)
-
+    if (nrow(last_coord) == 0) {
+      return("-")
+    } else {
+      paste("Dimensões: ", dimensoes, ", Ponto", last_coord$ponto, ", X:", last_coord$x, ", Y:", last_coord$y)
+    }
   })
 
-### Outputs ------------
+  ### Outputs ------------
   output$imgOutput <- renderUI({
     imagem <- imgStore()
 
-    if (is.null(imagem)) return(NULL)
+    if (is.null(imagem)) {
+      return(NULL)
+    }
 
     coords(data.frame(ponto = integer(0), x = numeric(0), y = numeric(0), cor = character(0), cinza = numeric(0), outlier = character(0)))
 
@@ -252,18 +252,23 @@ server <- function(session, input, output) {
 
     imgRaster <- dataURI(file = imagem$datapath, mime = imagem$type)
 
-    tags$div(style = "width: 100%; height: auto; overflow-x: auto; overflow-y: hidden;",
-             tags$img(src = imgRaster, id = "uploaded_img",
-                      # width = paste0(500 * input$zoom_level, "px"),
-                      onclick = "Shiny.setInputValue('img_click', [event.offsetX, event.offsetY], {priority: 'event'});")
+    tags$div(
+      style = "width: 100%; height: auto; overflow-x: auto; overflow-y: hidden;",
+      tags$img(
+        src = imgRaster, id = "uploaded_img",
+        # width = paste0(500 * input$zoom_level, "px"),
+        onclick = "Shiny.setInputValue('img_click', [event.offsetX, event.offsetY], {priority: 'event'});"
+      )
     )
   })
 
   output$scatter_plot <- renderPlot({
     dados <<- coords()
-    if (nrow(dados) == 0) return(NULL)
+    if (nrow(dados) == 0) {
+      return(NULL)
+    }
 
-    dados$ponto <- factor(dados$ponto, levels = c(1, 2, 3, 4), labels = c('A', 'B', 'C', 'D'))
+    dados$ponto <- factor(dados$ponto, levels = c(1, 2, 3, 4), labels = c("A", "B", "C", "D"))
     dados$y_mod <- dimensoes_aux[1] - dados$y
 
     imagem_grob <- rasterGrob(imgStore(), width = unit(1, "npc"), height = unit(1, "npc"), interpolate = TRUE)
@@ -287,62 +292,76 @@ server <- function(session, input, output) {
       ylim(ymin, ymax) +
       theme_minimal() +
       coord_cartesian(xlim = c(xmin, xmax), ylim = c(ymin, ymax)) +
-      theme(axis.text.x = element_blank(), axis.text.y = element_blank(),
-            legend.title = element_text(size = 14),
-            legend.text = element_text(size = 14)) +
+      theme(
+        axis.text.x = element_blank(), axis.text.y = element_blank(),
+        legend.title = element_text(size = 14),
+        legend.text = element_text(size = 14)
+      ) +
       theme(aspect.ratio = aspect_ratio)
-
   })
 
   output$regressaoTxt <- renderText({
     last_coord <- tail(coords(), 1)
-    if (nrow(last_coord) == 0)
+    if (nrow(last_coord) == 0) {
       return("-")
-    else {
+    } else {
       dados <- coords() # Obtenha os dados do dataframe
       modelo <- lm(y ~ x, data = dados)
-      eq <- paste("Equação: y =",
-                  round(coef(modelo)[1], 5), " + (",
-                  round(coef(modelo)[2], 5), ")x")
+      eq <- paste(
+        "Equação: y =",
+        round(coef(modelo)[1], 5), " + (",
+        round(coef(modelo)[2], 5), ")x"
+      )
       r2 <- paste("R² =", round(summary(modelo)$r.squared, 5))
       aic <- paste("AIC =", round(AIC(modelo), 5))
 
       grupos <- split(dados, dados$ponto)
 
       resultados_mvn <- lapply(grupos, function(grupo) {
-        mvn_result <- try(mvn(data = grupo[, c("x", "y")],
-                              mvnTest = "dh"),
-                          silent = TRUE)
-        if (inherits(mvn_result, 'try-error')) {return("-")}
-        else {return(paste(mvn_result$multivariateNormality$MVN))}
+        mvn_result <- try(
+          MVN::mvn(
+            data = grupo[, c("x", "y")],
+            mvn_test = "doornik_hansen"
+          ),
+          silent = FALSE
+        )
+        if (inherits(mvn_result, "try-error")) {
+          return("-")
+        } else {
+          return(paste0(mvn_result$multivariate_normality$p.value, " (",mvn_result$multivariate_normality$MVN, ")"))
+        }
       })
 
       paste(eq,
-            r2,
-            aic,
-            paste("Teste de Doornik-Hansen (por grupo): ", paste0(resultados_mvn, collapse = "")),
-            sep = "\n")
+        r2,
+        aic,
+        paste("Teste de Doornik-Hansen (por grupo): ", paste0(resultados_mvn, collapse = "")),
+        sep = "\n"
+      )
     }
   })
 
   # Download das coordenadas em CSV
   output$download_data <- downloadHandler(
     filename = function() {
-      paste("pontos_", Sys.Date(), ".csv", sep="")
+      paste("pontos_", Sys.Date(), ".csv", sep = "")
     },
     content = function(file) {
       dados <<- coords()
-      dados$ponto <- factor(dados$ponto, levels = c(1, 2, 3, 4), labels = c('A', 'B', 'C', 'D'))
+      dados$ponto <- factor(dados$ponto, levels = c(1, 2, 3, 4), labels = c("A", "B", "C", "D"))
 
       write.csv(dados, file, row.names = FALSE)
     }
   )
 
-  output$pixel_coords <- renderTable({
-    dados <<- coords()
-    dados$ponto <- factor(dados$ponto, levels = c(1, 2, 3, 4), labels = c('A', 'B', 'C', 'D'))
-    print(dados)
-  }, rownames = FALSE)
+  output$pixel_coords <- renderTable(
+    {
+      dados <<- coords()
+      dados$ponto <- factor(dados$ponto, levels = c(1, 2, 3, 4), labels = c("A", "B", "C", "D"))
+      print(dados)
+    },
+    rownames = FALSE
+  )
 
   # ___________________________________________________________________
 
@@ -369,76 +388,78 @@ server <- function(session, input, output) {
     }
 
     withProgress(message = "Cálculo em progresso...", value = 0, {
+      # Gráfico de dispersão
 
-    # Gráfico de dispersão
+      # Gerar as repeticoes
+      repeticoes_geradas <- gerar_repeticoes(dados, input$rep_mc)
 
-    # Gerar as repeticoes
-    repeticoes_geradas <- gerar_repeticoes(dados, input$rep_mc)
+      # Agrupar os dados por 'serie' e aplicar a regressao Deming a cada grupo
+      resultados <- repeticoes_geradas %>%
+        group_by(serie) %>%
+        do(modelo = deming(y ~ x, data = .))
 
-    # Agrupar os dados por 'serie' e aplicar a regressao Deming a cada grupo
-    resultados <- repeticoes_geradas %>%
-      group_by(serie) %>%
-      do(modelo = deming(y ~ x, data = .))
+      # Extrair os coeficientes de cada regressao e salva-los em uma lista
+      coeficientes <- lapply(resultados$modelo, coefficients)
 
-    # Extrair os coeficientes de cada regressao e salva-los em uma lista
-    coeficientes <- lapply(resultados$modelo, coefficients)
+      # Converter a lista em um data frame
+      df_coeficientes <- do.call(rbind, coeficientes)
 
-    # Converter a lista em um data frame
-    df_coeficientes <- do.call(rbind, coeficientes)
+      # Calcular a media e os intervalos de confianca dos coeficientes
+      media_coeficientes <- colMeans(df_coeficientes)
+      ic_coeficientes <- apply(df_coeficientes, 2, function(x) quantile(x, c(0.025, 0.975)))
 
-    # Calcular a media e os intervalos de confianca dos coeficientes
-    media_coeficientes <- colMeans(df_coeficientes)
-    ic_coeficientes <- apply(df_coeficientes, 2, function(x) quantile(x, c(0.025, 0.975)))
+      l <- input$dist_referencia / 1000000 # Distância de referência (km)
 
-    l <- input$dist_referencia/1000000 # Distância de referência (km)
+      # Media dos coeficientes
+      intercepto <- media_coeficientes[1]
+      inclinacao <- media_coeficientes[2]
 
-    # Media dos coeficientes
-    intercepto <- media_coeficientes[1]
-    inclinacao <- media_coeficientes[2]
+      # Calcular o centro de gravidade por 'ponto'
+      cg <<- repeticoes_geradas %>%
+        group_by(ponto) %>%
+        summarise(centro_gravidade_x = mean(x), centro_gravidade_y = mean(y))
 
-    # Calcular o centro de gravidade por 'ponto'
-    cg <<- repeticoes_geradas %>%
-      group_by(ponto) %>%
-      summarise(centro_gravidade_x = mean(x), centro_gravidade_y = mean(y))
+      # Calcular o ponto na reta de regressao mais proximo do centro de gravidade
+      centros_gravidade <- cg %>%
+        mutate(
+          projecao_x = (centro_gravidade_x + inclinacao * centro_gravidade_y - inclinacao * intercepto) / (1 + inclinacao^2),
+          projecao_y = inclinacao * projecao_x + intercepto
+        )
 
-    # Calcular o ponto na reta de regressao mais proximo do centro de gravidade
-    centros_gravidade <- cg %>%
-      mutate(
-        projecao_x = (centro_gravidade_x + inclinacao * centro_gravidade_y - inclinacao * intercepto) / (1 + inclinacao ^ 2),
-        projecao_y = inclinacao * projecao_x + intercepto
+      # Rotacao
+      angulo_de_rotacao <- -atan(inclinacao)
+      repeticoes_geradas_rotacionadas <- rotacionar_pontos(repeticoes_geradas, angulo_de_rotacao)
+
+      # Calcular a media dos valores de y apos a rotacao
+      intercepto <- mean(repeticoes_geradas_rotacionadas$y)
+
+      # A inclinacao e 0, posto que a linha e agora horizontal
+      inclinacao <- 0
+
+      centros_gravidade_rotacionados <- centros_gravidade[, c(1, 4, 5)]
+      colnames(centros_gravidade_rotacionados) <- c("ponto", "x", "y")
+      centros_gravidade_rotacionados[, 2:3] <- rotacionar_pontos(
+        centros_gravidade_rotacionados[, 2:3],
+        angulo_de_rotacao
       )
 
-    # Rotacao
-    angulo_de_rotacao <- -atan(inclinacao)
-    repeticoes_geradas_rotacionadas <- rotacionar_pontos(repeticoes_geradas, angulo_de_rotacao)
+      # Rotular os grupos como A, B, C e D
+      repeticoes_geradas_rotacionadas$ponto <- factor(repeticoes_geradas_rotacionadas$ponto,
+        levels = 1:4,
+        labels = c("A", "B", "C", "D")
+      )
 
-    # Calcular a media dos valores de y apos a rotacao
-    intercepto <- mean(repeticoes_geradas_rotacionadas$y)
+      # Fazer o mesmo para os centros de gravidade rotacionados
+      centros_gravidade_rotacionados$ponto <- factor(centros_gravidade_rotacionados$ponto,
+        levels = 1:4,
+        labels = c("A", "B", "C", "D")
+      )
 
-    # A inclinacao e 0, posto que a linha e agora horizontal
-    inclinacao <- 0
-
-    centros_gravidade_rotacionados <- centros_gravidade[,c(1,4,5)]
-    colnames(centros_gravidade_rotacionados) <- c('ponto', 'x', 'y')
-    centros_gravidade_rotacionados[,2:3] <- rotacionar_pontos(centros_gravidade_rotacionados[,2:3],
-                                                              angulo_de_rotacao)
-
-    # Rotular os grupos como A, B, C e D
-    repeticoes_geradas_rotacionadas$ponto <- factor(repeticoes_geradas_rotacionadas$ponto,
-                                                    levels = 1:4,
-                                                    labels = c("A", "B", "C", "D"))
-
-    # Fazer o mesmo para os centros de gravidade rotacionados
-    centros_gravidade_rotacionados$ponto <- factor(centros_gravidade_rotacionados$ponto,
-                                                   levels = 1:4,
-                                                   labels = c("A", "B", "C", "D"))
-
-    message("Processamento finalizado")
+      message("Processamento finalizado")
     })
     ### Outputs --------------
     #### Plotar o grafico de dispersao com cores identificando os grupos e series -----
     output$dispersaoCinza <- renderPlot({
-
       if (is.null(input$upload)) {
         showNotification("Nenhuma imagem carregada.", type = "error")
         return(NULL)
@@ -452,11 +473,10 @@ server <- function(session, input, output) {
           return(NULL)
         }
       )
-      if (is.null(img)) return(NULL)
+      if (is.null(img)) {
+        return(NULL)
+      }
 
-
-      # imagem <- input$upload
-      # img <- imager::load.image(imagem$datapath)
       smoothed_img <- isoblur(img, sigma = input$dp)
 
 
@@ -477,18 +497,14 @@ server <- function(session, input, output) {
       )
       unlink(temp_file)
 
-      if (is.null(imgData)) return(NULL)
-      #
-      #
-      # temp_file <- tempfile(pattern = "aux", fileext = ".jpg")
-      # imager::save.image(smoothed_img, temp_file)
-      # imgData <<- as.array(readJPEG(temp_file))
-      # unlink(temp_file)
+      if (is.null(imgData)) {
+        return(NULL)
+      }
 
       dimensoes_aux <- dim(imgData)
 
       # Criando um data.frame para armazenar os resultados
-      resultados <- data.frame(x=integer(), y=integer(), cinza=numeric())
+      resultados <- data.frame(x = integer(), y = integer(), cinza = numeric())
 
       # Regressão
       regressao_deming <- deming(y ~ x, data = dados)
@@ -499,19 +515,17 @@ server <- function(session, input, output) {
 
       # Loop sobre os pixels
       for (x_coord in 1:dimensoes_aux[2]) {
-
         # Prever o valor de y usando os coeficientes da regressão
         predito_y <- beta_0 + beta_1 * x_coord
 
         # Se o y previsto estiver dentro das dimensões da imagem, extrair o valor de cinza
         if (predito_y >= 1 & predito_y <= dimensoes_aux[1]) {
-
           # O valor de cinza pode ser extraído da matriz da imagem
           # Convertendo para cinza: utilizando a média dos 3 canais, se necessário
           cinza <- mean(imgData[predito_y, x_coord, 1:3])
 
           # Adicionando os resultados ao data.frame
-          resultados <- rbind(resultados, data.frame(x=x_coord, y=round(predito_y), cinza=cinza))
+          resultados <- rbind(resultados, data.frame(x = x_coord, y = round(predito_y), cinza = cinza))
         }
       }
       # Usando a inclinação para calcular o ângulo de rotação
@@ -530,33 +544,37 @@ server <- function(session, input, output) {
 
       spline_data <- smooth.spline(resultados$rot, resultados$cinza, cv = TRUE)
 
-      p <- ggplot(resultados, aes(x=rot, y=cinza)) +
-        geom_point(size=0.3, color="black") +
-        geom_line(data = data.frame(x = spline_data$x, y = spline_data$y), aes(x=x, y=y), color="blue") +
-        labs(title="Tom de cinza médio por abscissas rotacionadas",
-             x="Abscissas rotacionadas",
-             y="Tom de cinza") +
-        geom_vline(data=cg_aux, aes(xintercept=rot), linetype="dashed", color="red") +
-        geom_text(data=cg_aux, aes(x=rot, label=label), vjust=7, hjust=1.5, size = 5, color="red") +
+      p <- ggplot(resultados, aes(x = rot, y = cinza)) +
+        geom_point(size = 0.3, color = "black") +
+        geom_line(data = data.frame(x = spline_data$x, y = spline_data$y), aes(x = x, y = y), color = "blue") +
+        labs(
+          title = "Tom de cinza médio por abscissas rotacionadas",
+          x = "Abscissas rotacionadas",
+          y = "Tom de cinza"
+        ) +
+        geom_vline(data = cg_aux, aes(xintercept = rot), linetype = "dashed", color = "red") +
+        geom_text(data = cg_aux, aes(x = rot, label = label), vjust = 7, hjust = 1.5, size = 5, color = "red") +
         theme_minimal()
 
-      message ("plot dispersao_cinza finalizado")
+      message("plot dispersao_cinza finalizado")
       p
     })
 
     #### Plotar o grafico de dispersao com cores identificando os grupos e series -------
     output$scatterPlot <- renderPlot({
-      p<- ggplot(repeticoes_geradas_rotacionadas, aes(x = x, y = y)) +
+      p <- ggplot(repeticoes_geradas_rotacionadas, aes(x = x, y = y)) +
         geom_hex(bins = 120, aes(fill = ..count..)) +
         scale_fill_gradient(name = "Frequencias", low = "gray", high = "black") +
         geom_abline(intercept = intercepto, slope = inclinacao, color = "black") +
         geom_point(data = centros_gravidade_rotacionados, aes(x = x, y = y), color = "lightblue", shape = 7, size = 1) +
-        geom_text(data = centros_gravidade_rotacionados, aes(x = x, label = ponto),
-                  vjust = -0.25, hjust = 1.5, size = 5, color = "red") +
+        geom_text(
+          data = centros_gravidade_rotacionados, aes(x = x, label = ponto),
+          vjust = -0.25, hjust = 1.5, size = 5, color = "red"
+        ) +
         labs(x = "Abscissas rotacionadas", y = "Ordenadas rotacionadas") +
         theme_minimal()
 
-      message ("scatterplot finalizado")
+      message("scatterplot finalizado")
       p
     })
 
@@ -576,23 +594,22 @@ server <- function(session, input, output) {
         ungroup()
 
       # Remove valores NA e calcula a velocidade
-      dt <-  input$fim_quadro - input$inicio_quadro # Tempo entre os frames (s)
-      dt <-  dt/3600 # h
-      # velocidade <- na.omit(resultados$distancia)/dt
-      # velocidade <- na.omit(resultados$distancia)/(dt+
-      #                       rnorm(1, mean = dt*input$erro_medio_mt,
-      #                                sd = abs(dt)*input$dp_erro_medio_mt)/1000)
+      dt <- input$fim_quadro - input$inicio_quadro # Tempo entre os frames (s)
+      dt <- dt / 3600 # h
 
       # Proteção contra NULL nos inputs
       erro_medio_mt <- input$erro_medio_mt %||% 0
       dp_erro_medio_mt <- input$dp_erro_medio_mt %||% 0
 
-      ruido <- tryCatch({
-        rnorm(1, mean = dt * erro_medio_mt, sd = abs(dt) * dp_erro_medio_mt) / 1000
-      }, error = function(e) {
-        showNotification("Erro ao gerar ruído aleatório", type = "error")
-        return(0)
-      })
+      ruido <- tryCatch(
+        {
+          rnorm(1, mean = dt * erro_medio_mt, sd = abs(dt) * dp_erro_medio_mt) / 1000
+        },
+        error = function(e) {
+          showNotification("Erro ao gerar ruído aleatório", type = "error")
+          return(0)
+        }
+      )
 
       velocidade <- na.omit(resultados$distancia) / (dt + ruido)
 
@@ -600,7 +617,7 @@ server <- function(session, input, output) {
       media <- mean(velocidade)
 
       # Percentis
-      percentis <- quantile(velocidade, c((1-input$nc)/2, 1-(1-input$nc)/2))
+      percentis <- quantile(velocidade, c((1 - input$nc) / 2, 1 - (1 - input$nc) / 2))
 
       velocidade <- as.data.frame(velocidade)
       names(velocidade) <- "v"
@@ -610,8 +627,8 @@ server <- function(session, input, output) {
         geom_vline(aes(xintercept = percentis[1]), color = "red", linetype = "dashed", linewidth = 0.5) +
         geom_vline(aes(xintercept = percentis[2]), color = "red", linetype = "dashed", linewidth = 0.5) +
         annotate("text", x = media, y = Inf, label = paste(round(media, 1)), vjust = 2, color = "black", size = 5) +
-        annotate("text", x = percentis[1], y = Inf, label = paste(round(percentis[1],1)), vjust = 3, color = "black", size = 5) +
-        annotate("text", x = percentis[2], y = Inf, label = paste(round(percentis[2],1)), vjust = 3, color = "black", size = 5) +
+        annotate("text", x = percentis[1], y = Inf, label = paste(round(percentis[1], 1)), vjust = 3, color = "black", size = 5) +
+        annotate("text", x = percentis[2], y = Inf, label = paste(round(percentis[2], 1)), vjust = 3, color = "black", size = 5) +
         labs(x = "Velocidade (km/h)", y = "Frequência") +
         theme_minimal()
 
@@ -623,84 +640,102 @@ server <- function(session, input, output) {
         geom_boxplot() +
         labs(x = "Velocidade (km/h)", y = "Frequencia") +
         theme_minimal() +
-        theme(axis.text.y = element_blank(),
-              axis.ticks.y = element_blank(),
-              panel.grid.major = element_blank(),
-              panel.grid.minor = element_blank(),
-              axis.line.y = element_blank(),
-              axis.line.x = element_blank(),
-              axis.title.y = element_blank())
+        theme(
+          axis.text.y = element_blank(),
+          axis.ticks.y = element_blank(),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          axis.line.y = element_blank(),
+          axis.line.x = element_blank(),
+          axis.title.y = element_blank()
+        )
 
       # Organizando os dois graficos em um unico plot
-      p <- plot_grid(p1, p2, ncol = 1, align = "v", axis = "l", rel_heights = c(6/7, 1/7))
+      p <- plot_grid(p1, p2, ncol = 1, align = "v", axis = "l", rel_heights = c(6 / 7, 1 / 7))
       message("plot de histograma finalizado")
       p
-
     })
 
+    #### Plot histogramaDistancia ---------
+    output$histogramDistancia <- renderPlot({
+      deslocamento <- as.data.frame(resultados$distancia * 1000)
+      colnames(deslocamento) <- "d"
 
-  output$histogramDistancia <- renderPlot({
-    deslocamento <- as.data.frame(resultados$distancia*1000)
-    colnames(deslocamento) <- "d"
+      # Media
+      media <- mean(deslocamento$d, na.rm = TRUE)
 
-    # Media
-    media <- mean(deslocamento$d, na.rm = TRUE)
+      # ECDF
+      ecdf_fun <- ecdf(deslocamento$d)
 
-    # ECDF
-    ecdf_fun <- ecdf(deslocamento$d)
+      # Percentil da média
+      percentil_media <- ecdf_fun(media)
 
-    # Percentil da média
-    percentil_media <- ecdf_fun(media)
+      # Percentis
+      percentil <- quantile(deslocamento$d,
+        c((1 - input$nc) / 2, 1 - (1 - input$nc) / 2),
+        na.rm = TRUE
+      )
 
-    # Percentis
-    percentil <- quantile(deslocamento$d,
-                          c((1-input$nc)/2, 1-(1-input$nc)/2),
-                          na.rm = TRUE)
+      p <- ggplot(deslocamento, aes(x = d)) +
+        stat_ecdf(geom = "line", colour = "blue", size = 1) +
+        geom_hline(
+          yintercept = percentil_media,
+          colour = "green",
+          linetype = "dashed",
+          size = 0.5
+        ) +
+        geom_hline(
+          yintercept = (1 - input$nc) / 2,
+          colour = "red",
+          linetype = "dashed",
+          size = 0.5
+        ) +
+        geom_hline(
+          yintercept = 1 - (1 - input$nc) / 2,
+          colour = "red",
+          linetype = "dashed",
+          size = 0.5
+        ) +
+        labs(
+          # title = "Ogiva de Galton do deslocamento",
+          x = "Deslocamento (m)",
+          y = "Frequência Acumulada"
+        ) +
+        theme_minimal()
 
-    p <- ggplot(deslocamento, aes(x = d)) +
-      stat_ecdf(geom = "line", colour = "blue", size = 1) +
-      geom_hline(yintercept = percentil_media,
-                 colour = "green",
-                 linetype = "dashed",
-                 size = 0.5) +
-      geom_hline(yintercept = (1-input$nc)/2,
-                 colour = "red",
-                 linetype = "dashed",
-                 size = 0.5) +
-      geom_hline(yintercept = 1-(1-input$nc)/2,
-                 colour = "red",
-                 linetype = "dashed",
-                 size = 0.5) +
-      labs(
-           # title = "Ogiva de Galton do deslocamento",
-           x = "Deslocamento (m)",
-           y = "Frequência Acumulada") +
-      theme_minimal()
+      p <- p + geom_text(
+        aes(
+          x = percentil[1], y = (1 - input$nc) / 2,
+          label = sprintf("%.2f", percentil[1])
+        ),
+        vjust = 0,
+        hjust = 0,
+        size = 5
+      )
 
-    p <- p + geom_text(aes(x = percentil[1], y = (1-input$nc)/2,
-                           label = sprintf("%.2f", percentil[1])),
-                       vjust = 0,
-                       hjust = 0,
-                       size = 5)
+      p <- p + geom_text(
+        aes(
+          x = media, y = percentil_media,
+          label = sprintf("%.2f", media)
+        ),
+        vjust = 0,
+        hjust = 1,
+        size = 5
+      )
 
-    p <- p + geom_text(aes(x = media, y = percentil_media,
-                           label = sprintf("%.2f", media)),
-                       vjust = 0,
-                       hjust = 1,
-                       size = 5)
-
-    p <- p + geom_text(aes(x = percentil[2], y = 1-(1-input$nc)/2,
-                           label = sprintf("%.2f", percentil[2])),
-                       vjust = 0,
-                       hjust = 1,
-                       size = 5)
-    message("plot histogram_distance finalizado")
-    p
-
+      p <- p + geom_text(
+        aes(
+          x = percentil[2], y = 1 - (1 - input$nc) / 2,
+          label = sprintf("%.2f", percentil[2])
+        ),
+        vjust = 0,
+        hjust = 1,
+        size = 5
+      )
+      message("plot histogram_distance finalizado")
+      p
+    })
   })
-
-  })
-
 }
 
 # Execute a aplicação Shiny
