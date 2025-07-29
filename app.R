@@ -2,7 +2,7 @@
 # Autor Carlo Ralph De Musis
 # Versão: 0.84
 
-pacman::p_load(base64enc, jpeg, shiny, shinydashboard, cowplot, imager, MASS, MVN, deming, dplyr, ggplot2, tidyr, grid, hexbin, plotly, shinyBS)
+pacman::p_load(base64enc, jpeg, png, shiny, shinydashboard, cowplot, imager, MASS, MVN, deming, dplyr, ggplot2, tidyr, grid, hexbin, plotly, shinyBS)
 
 # Objetos ------------------------------------
 
@@ -145,7 +145,7 @@ ui <- dashboardPage(
         "Escolha uma imagem:",
         buttonLabel = "Selecione...",
         placeholder = "Nenhum arquivo selecionado",
-        accept = c("image/jpeg")
+        accept = c("image/jpeg", "image/png")
       ),
       sliderInput(
         inputId = "zoom_nivel",
@@ -171,9 +171,7 @@ ui <- dashboardPage(
         ajuda_titulo = NULL,
         ajuda_texto = "Aplica suavização à imagem antes do cálculo da linha de regressão, reduzindo ruídos locais."
       ),
-
       tags$hr(),
-
       input_com_ajuda(
         input_id = "arq",
         label_text = "Arquivo com coordenadas (opcional):",
@@ -182,7 +180,6 @@ ui <- dashboardPage(
         ajuda_titulo = NULL,
         ajuda_texto = "Se você não marcou os pontos na aba anterior, pode carregar um arquivo .CSV com as coordenadas."
       ),
-
       input_com_ajuda(
         input_id = "inicio_quadro",
         label_text = "Marcação temporal do quadro inicial (s):",
@@ -191,7 +188,6 @@ ui <- dashboardPage(
         ajuda_titulo = NULL,
         ajuda_texto = "Tempo do primeiro frame utilizado na estimativa de velocidade."
       ),
-
       input_com_ajuda(
         input_id = "fim_quadro",
         label_text = "Marcação temporal do quadro final (s):",
@@ -200,7 +196,6 @@ ui <- dashboardPage(
         ajuda_titulo = NULL,
         ajuda_texto = "Tempo do segundo frame utilizado na estimativa de velocidade."
       ),
-
       input_com_ajuda(
         input_id = "erro_medio_mt",
         label_text = "Erro médio da marcação temporal (ms/s):",
@@ -209,7 +204,6 @@ ui <- dashboardPage(
         ajuda_titulo = NULL,
         ajuda_texto = "Erro médio (em milissegundos por segundo) estimado na marcação dos tempos."
       ),
-
       input_com_ajuda(
         input_id = "dp_erro_medio_mt",
         label_text = "DP do erro médio da marcação temporal (ms/s):",
@@ -218,7 +212,6 @@ ui <- dashboardPage(
         ajuda_titulo = NULL,
         ajuda_texto = "Desvio padrão do erro médio informado, para simulação de incertezas."
       ),
-
       input_com_ajuda(
         input_id = "dist_referencia",
         label_text = "Distância de referência (mm):",
@@ -227,9 +220,7 @@ ui <- dashboardPage(
         ajuda_titulo = NULL,
         ajuda_texto = "Distância real conhecida entre os centros das rodas do veículo."
       ),
-
       tags$hr(),
-
       input_com_ajuda(
         input_id = "rep_mc",
         label_text = "Número de repetições pelo MMC:",
@@ -238,7 +229,6 @@ ui <- dashboardPage(
         ajuda_titulo = NULL,
         ajuda_texto = "Número de simulações de Monte Carlo realizadas para estimar a velocidade média e os intervalos de confiança."
       ),
-
       input_com_ajuda(
         input_id = "nc",
         label_text = "Nível de confiança:",
@@ -247,7 +237,6 @@ ui <- dashboardPage(
         ajuda_titulo = NULL,
         ajuda_texto = "Nível de confiança para os intervalos gerados da velocidade média estimada."
       ),
-
       actionButton("calcular_botao", "Calcular!")
     )
   ),
@@ -342,7 +331,6 @@ ui <- dashboardPage(
             ))
           ),
           plotly::plotlyOutput("dispersaoCinza"),
-
           titulo_com_ajuda(
             ajuda_id = "ajuda_scatter",
             label_text = "Densidade dos pontos simulados",
@@ -358,7 +346,6 @@ ui <- dashboardPage(
             ))
           ),
           plotly::plotlyOutput("scatterPlot"),
-
           titulo_com_ajuda(
             ajuda_id = "ajuda_hist_vel",
             label_text = "Velocidade estimada",
@@ -372,7 +359,6 @@ ui <- dashboardPage(
             ))
           ),
           plotly::plotlyOutput("histogramPlot"),
-
           titulo_com_ajuda(
             ajuda_id = "ajuda_hist_dist",
             label_text = "Deslocamento estimado",
@@ -385,7 +371,6 @@ ui <- dashboardPage(
             ))
           ),
           plotly::plotlyOutput("histogramDistancia")
-
         )
       )
     )
@@ -413,7 +398,20 @@ server <- function(session, input, output) {
   )
 
   observeEvent(input$upload, {
-    imgStore(readJPEG(input$upload$datapath))
+    extensao <- tools::file_ext(input$upload$name)
+
+    imagem_array <- switch(extensao,
+      "jpg" = jpeg::readJPEG(input$upload$datapath),
+      "jpeg" = jpeg::readJPEG(input$upload$datapath),
+      "png" = png::readPNG(input$upload$datapath),
+      {
+        showNotification("Formato de imagem não suportado.", type = "error")
+        return(NULL)
+      }
+    )
+
+    imgStore(imagem_array) # Armazena imagem reativa
+
     coords(
       data.frame(
         ponto = integer(0),
@@ -529,7 +527,14 @@ server <- function(session, input, output) {
       return(NULL)
     }
     imagem <- input$upload
-    imgData <<- readJPEG(imagem$datapath)
+
+    extensao <- tools::file_ext(input$upload$name)
+    imgData <<- switch(extensao,
+      "jpg" = jpeg::readJPEG(input$upload$datapath),
+      "jpeg" = jpeg::readJPEG(input$upload$datapath),
+      "png" = png::readPNG(input$upload$datapath),
+      NULL
+    )
 
     dimensoes_aux <<- dim(imgData)
     dimensoes <<- paste(dimensoes_aux[2], "x", dimensoes_aux[1])
@@ -971,12 +976,18 @@ server <- function(session, input, output) {
         y_max <- max(ggplot_build(p1)$data[[1]]$count, na.rm = TRUE) * 1.05
 
         p1 <- p1 +
-          annotate("text", x = media, y = y_max, label = round(media, 1),
-                   vjust = 0, color = "blue", size = 5) +
-          annotate("text", x = percentis[1], y = y_max, label = round(percentis[1], 1),
-                   vjust = 0, color = "red", size = 5) +
-          annotate("text", x = percentis[2], y = y_max, label = round(percentis[2], 1),
-                   vjust = 0, color = "red", size = 5)
+          annotate("text",
+            x = media, y = y_max, label = round(media, 1),
+            vjust = 0, color = "blue", size = 5
+          ) +
+          annotate("text",
+            x = percentis[1], y = y_max, label = round(percentis[1], 1),
+            vjust = 0, color = "red", size = 5
+          ) +
+          annotate("text",
+            x = percentis[2], y = y_max, label = round(percentis[2], 1),
+            vjust = 0, color = "red", size = 5
+          )
 
         # Removendo o eixo x do histograma
         p1 <- p1 + theme(axis.title.x = element_blank(), axis.text.x = element_blank(), axis.ticks.x = element_blank())
