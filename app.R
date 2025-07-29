@@ -92,7 +92,7 @@ rotacionar_pontos <- function(df, angulo) {
 ui <- dashboardPage(
   dashboardHeader(title = "POLITEC/MT"),
   dashboardSidebar(
-    # Barra lateral com abas recolhíveis e dispositivos de entrada
+    ## Barra lateral -----
     sidebarMenu(
       id = "tabs",
       menuItem("Coordenadas", tabName = "app1", icon = icon("dashboard")),
@@ -100,7 +100,7 @@ ui <- dashboardPage(
       tags$hr()
     ),
 
-    # Elementos de entrada para a primeira aba
+    ### Elementos de entrada para a primeira aba --------
     conditionalPanel(
       condition = "input.tabs === 'app1'",
       fileInput("upload", "Escolha uma Imagem",
@@ -112,7 +112,7 @@ ui <- dashboardPage(
       actionButton("apagar_tudo", "Apagar tudo"),
     ),
 
-    # Elementos de entrada para a segunda aba
+    ### Elementos de entrada para a segunda aba ----------
     conditionalPanel(
       condition = "input.tabs === 'app2'",
       sliderInput("dp", "Filtro gaussiano isotrópico, desvio padrão:", min = 0, max = 100, value = 0, step = 1),
@@ -134,7 +134,7 @@ ui <- dashboardPage(
     )
   ),
   dashboardBody(
-    # Conteúdo das saídas
+    ## Conteúdo das saídas -----
     tabItems(
       tabItem(
         tabName = "app1",
@@ -145,15 +145,13 @@ ui <- dashboardPage(
             shinyBS::bsButton("ajuda_marcacao", label = NULL, icon = icon("info-circle"), size = "extra-small")
           )
         ),
-
         fluidRow(
           uiOutput("imgOutput")
         ),
-
         fluidRow(
           verbatimTextOutput("coordsTxt")
         ),
-  fluidRow(
+        fluidRow(
           # Resumo das estatísticas de regressão
           tags$div(
             style = "display: flex; align-items: center; gap: 8px;",
@@ -169,7 +167,8 @@ ui <- dashboardPage(
           plotOutput("scatter_plot"),
           tableOutput("pixel_coords"),
           downloadButton("download_data", "Download das Coordenadas"),
-          # Botões de ajuda
+
+          ## Botões de ajuda ------------
           shinyBS::bsPopover(
             id = "ajuda_regressao",
             title = "Interpretação dos resultados",
@@ -353,7 +352,7 @@ server <- function(session, input, output) {
     # Plotar o gráfico com os valores de Y transformados
     p <- ggplot(dados, aes(x = x, y = y_mod)) +
       annotation_custom(imagem_grob, xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax) +
-      geom_smooth(method = "lm", se = FALSE, linetype = "dashed", color = "black", alpha = 0.5, aes(group = 1)) +
+      geom_smooth(formula = "y ~ x", method = "lm", se = FALSE, linetype = "dashed", color = "black", alpha = 0.5, aes(group = 1)) +
       geom_point(aes(shape = ponto, color = ponto), size = 7, alpha = 0.5) +
       labs(shape = "Pontos", color = "Pontos", x = "", y = "") +
       scale_shape_manual(values = c(16, 17, 18, 19)) +
@@ -399,7 +398,12 @@ server <- function(session, input, output) {
             mvn_test = "mardia"
           ),
           silent = TRUE
-        )
+        ) |> withCallingHandlers(warning = function(w) {
+          msg <- conditionMessage(w)
+          if (grepl("Number of variables exceeds sample size", msg)) {
+            invokeRestart("muffleWarning") # Suprime aviso de tamanho de amostra
+          }
+        })
 
         if (inherits(mvn_result, "try-error")) {
           return(paste0(letra, " - Erro no teste"))
@@ -450,7 +454,7 @@ server <- function(session, input, output) {
     {
       dados <<- coords()
       dados$ponto <- factor(dados$ponto, levels = c(1, 2, 3, 4), labels = c("A", "B", "C", "D"))
-      print(dados)
+      dados
     },
     rownames = FALSE
   )
