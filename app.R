@@ -177,10 +177,10 @@ ui <- dashboardPage(
       input_com_ajuda(
         input_id = "arq",
         label_text = "Arquivo com coordenadas (opcional):",
-        input_ui = fileInput("arq", NULL, buttonLabel = "Selecione...", placeholder = "Nenhum arquivo selecionado"),
+        input_ui = fileInput("arq", NULL, buttonLabel = "Selecione...", placeholder = "Nenhum arquivo selecionado", accept = ".csv"),
         ajuda_id = "ajuda_arquivo",
         ajuda_titulo = NULL,
-        ajuda_texto = "Se você não marcou os pontos na aba anterior, pode carregar um arquivo CSV com as coordenadas."
+        ajuda_texto = "Se você não marcou os pontos na aba anterior, pode carregar um arquivo .CSV com as coordenadas."
       ),
 
       input_com_ajuda(
@@ -350,10 +350,10 @@ ui <- dashboardPage(
             ajuda_texto = HTML(paste0(
               "Cada ponto neste gráfico representa uma simulação da posição dos centros das rodas, ",
               "baseada no Método de Monte Carlo.<br/><br/>",
-              "O fundo em escala de cinza mostra a densidade dessas simulações: áreas mais escuras ",
+              "<b>O fundo em escala de cinza mostra a densidade dessas simulações</b>: áreas mais escuras ",
               "indicam maior concentração de pontos.<br/><br/>",
-              "A linha preta é a regressão final ajustada. Os símbolos vermelhos (A-D) mostram os ",
-              "centros médios simulados das rodas.<br/><br/>",
+              "A <b>linha preta</b> é a regressão final ajustada. Os <b>símbolos vermelhos</b> (A-D) mostram os ",
+              "pontos de referência, conforme marcações.<br/><br/>",
               "Esse gráfico ajuda a visualizar a dispersão e a consistência das marcações simuladas."
             ))
           ),
@@ -365,7 +365,7 @@ ui <- dashboardPage(
             ajuda_titulo = "Como interpretar os resultados",
             ajuda_texto = HTML(paste0(
               "Este gráfico mostra a distribuição das velocidades estimadas a partir das simulações.<br/><br/>",
-              "A barra cinza representa quantas simulações resultaram em cada faixa de velocidade.<br/><br/>",
+              "<b>A barra cinza</b> representa quantas simulações resultaram em cada faixa de velocidade.<br/><br/>",
               "<b>A linha azul</b> indica a média da velocidade estimada. <br/>",
               "<b>Linhas vermelhas</b> marcam os limites do intervalo de confiança definido à esquerda (por exemplo, 99%).<br/><br/>",
               "Esses valores indicam a incerteza da estimativa: quanto mais estreito o intervalo, mais confiável o resultado."
@@ -713,6 +713,12 @@ server <- function(session, input, output) {
       }
     }
 
+    # Garantindo formato
+    dados$ponto <- dplyr::recode(
+      tolower(dados$ponto),
+      "a" = "1", "b" = "2", "c" = "3", "d" = "4"
+    )
+
     withProgress(message = "Cálculo em progresso...", value = 0, {
       # Gráfico de dispersão
 
@@ -952,23 +958,31 @@ server <- function(session, input, output) {
         percentis <- quantile(velocidade, c((1 - input$nc) / 2, 1 - (1 - input$nc) / 2))
 
         velocidade <- as.data.frame(velocidade)
-        names(velocidade) <- "v"
-        p1 <- ggplot(velocidade, aes(x = v)) +
+
+        names(velocidade) <- "Velocidade"
+        p1 <- ggplot(velocidade, aes(x = Velocidade)) +
           geom_histogram(binwidth = 0.5, color = "black", fill = "lightgray") +
           geom_vline(aes(xintercept = media), color = "blue", linetype = "dashed", linewidth = 0.5) +
           geom_vline(aes(xintercept = percentis[1]), color = "red", linetype = "dashed", linewidth = 0.5) +
           geom_vline(aes(xintercept = percentis[2]), color = "red", linetype = "dashed", linewidth = 0.5) +
-          annotate("text", x = media, y = Inf, label = paste(round(media, 1)), vjust = 2, color = "black", size = 5) +
-          annotate("text", x = percentis[1], y = Inf, label = paste(round(percentis[1], 1)), vjust = 3, color = "black", size = 5) +
-          annotate("text", x = percentis[2], y = Inf, label = paste(round(percentis[2], 1)), vjust = 3, color = "black", size = 5) +
           labs(x = "Velocidade (km/h)", y = "Frequência") +
           theme_minimal(base_size = 13)
+
+        y_max <- max(ggplot_build(p1)$data[[1]]$count, na.rm = TRUE) * 1.05
+
+        p1 <- p1 +
+          annotate("text", x = media, y = y_max, label = round(media, 1),
+                   vjust = 0, color = "blue", size = 5) +
+          annotate("text", x = percentis[1], y = y_max, label = round(percentis[1], 1),
+                   vjust = 0, color = "red", size = 5) +
+          annotate("text", x = percentis[2], y = y_max, label = round(percentis[2], 1),
+                   vjust = 0, color = "red", size = 5)
 
         # Removendo o eixo x do histograma
         p1 <- p1 + theme(axis.title.x = element_blank(), axis.text.x = element_blank(), axis.ticks.x = element_blank())
 
         # Criando o boxplot
-        p2 <- ggplot(velocidade, aes(x = v, y = 1)) +
+        p2 <- ggplot(velocidade, aes(x = Velocidade, y = 1)) +
           geom_boxplot() +
           labs(x = "Velocidade (km/h)", y = "Frequencia") +
           theme_minimal(base_size = 13) +
@@ -1040,8 +1054,7 @@ server <- function(session, input, output) {
           ) +
           theme_minimal(base_size = 13)
 
-        p <- p + annotate(
-          "text",
+        p <- p + annotate("text",
           x = percentil[1],
           y = (1 - input$nc) / 2,
           label = sprintf("%.2f", percentil[1]),
@@ -1050,8 +1063,7 @@ server <- function(session, input, output) {
           size = 5
         )
 
-        p <- p + annotate(
-          "text",
+        p <- p + annotate("text",
           x = media,
           y = percentil_media,
           label = sprintf("%.2f", media),
@@ -1060,8 +1072,7 @@ server <- function(session, input, output) {
           size = 5
         )
 
-        p <- p + annotate(
-          "text",
+        p <- p + annotate("text",
           x = percentil[2],
           y = 1 - (1 - input$nc) / 2,
           label = sprintf("%.2f", percentil[2]),
