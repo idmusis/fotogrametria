@@ -103,11 +103,22 @@ ui <- dashboardPage(
     ### Elementos de entrada para a primeira aba --------
     conditionalPanel(
       condition = "input.tabs === 'app1'",
-      fileInput("upload", "Escolha uma Imagem",
+      fileInput(
+        "upload",
+        "Escolha uma imagem:",
         buttonLabel = "Selecione...",
         placeholder = "Nenhum arquivo selecionado",
         accept = c("image/jpeg")
       ),
+      sliderInput(
+        inputId = "zoom_nivel",
+        label = "Nível de zoom:",
+        min = 0.1,
+        max = 3,
+        value = 1,
+        step = 0.1
+      ),
+      tags$hr(),
       actionButton("apagar_botao", "Apagar último ponto"),
       actionButton("apagar_tudo", "Apagar tudo"),
     ),
@@ -115,21 +126,57 @@ ui <- dashboardPage(
     ### Elementos de entrada para a segunda aba ----------
     conditionalPanel(
       condition = "input.tabs === 'app2'",
-      sliderInput("dp", "Filtro gaussiano isotrópico, desvio padrão:", min = 0, max = 100, value = 0, step = 1),
+      sliderInput(
+        "dp", "Filtro gaussiano isotrópico, desvio padrão:",
+        min = 0, max = 100, value = 0, step = 1
+      ),
       tags$hr(),
-      fileInput("arq", "Arquivo com coordenadas dos pontos (apenas se não os gerou na outra aba):",
+      fileInput(
+        "arq",
+        "Arquivo com coordenadas dos pontos (apenas se não os gerou na outra aba):",
         buttonLabel = "Selecione...",
         placeholder = "Nenhum arquivo selecionado",
         accept = c("text/csv", "text/comma-separated-values,text/plain", ".csv")
       ),
-      numericInput("inicio_quadro", "Marcação temporal do quadro inicial (s):", value = 1.266, min = 0, step = 0.00001),
-      numericInput("fim_quadro", "Marcação temporal do quadro final (s):", value = 1.866, min = 0, step = 0.00001),
-      numericInput("erro_medio_mt", "Erro médio da marcação temporal (ms/s):", value = 0.881, min = 0.01, max = 5, step = 0.00001),
-      numericInput("dp_erro_medio_mt", "DP do erro médio da marcação temporal (ms/s):", value = 0.287, min = 0.01, max = 5, step = 0.00001),
-      numericInput("dist_referencia", "Distância de referência (mm):", value = 2002, min = 0.01, step = 0.00001),
+      numericInput(
+        "inicio_quadro",
+        "Marcação temporal do quadro inicial (s):",
+        value = 1.266,
+        min = 0,
+        step = 0.00001
+      ),
+      numericInput(
+        "fim_quadro",
+        "Marcação temporal do quadro final (s):",
+        value = 1.866,
+        min = 0,
+        step = 0.00001
+      ),
+      numericInput(
+        "erro_medio_mt",
+        "Erro médio da marcação temporal (ms/s):",
+        value = 0.881,
+        min = 0.01,
+        max = 5,
+        step = 0.00001
+      ),
+      numericInput(
+        "dp_erro_medio_mt", "DP do erro médio da marcação temporal (ms/s):",
+        value = 0.287, min = 0.01, max = 5, step = 0.00001
+      ),
+      numericInput(
+        "dist_referencia", "Distância de referência (mm):",
+        value = 2002, min = 0.01, step = 0.00001
+      ),
       tags$hr(),
-      numericInput("rep_mc", "Número de repetições pelo MMC:", value = 100, min = 1, max = 10000, step = 0.00001),
-      numericInput("nc", "Nível de confiança:", value = 0.99, min = 0.00001, max = 0.99999, step = 0.00001),
+      numericInput(
+        "rep_mc", "Número de repetições pelo MMC:",
+        value = 100, min = 1, max = 10000, step = 0.00001
+      ),
+      numericInput(
+        "nc", "Nível de confiança:",
+        value = 0.99, min = 0.00001, max = 0.99999, step = 0.00001
+      ),
       actionButton("calcular_botao", "Calcular!"),
     )
   ),
@@ -227,10 +274,29 @@ server <- function(session, input, output) {
   imgStore <- reactiveVal(NULL)
 
   ## Lógica da primeira aba ----------------
-  coords <- reactiveVal(data.frame(ponto = integer(0), x = numeric(0), y = numeric(0), cor = character(0), cinza = numeric(0), outlier = character(0)))
+  coords <- reactiveVal(
+    data.frame(
+      ponto = integer(0),
+      x = numeric(0),
+      y = numeric(0),
+      cor = character(0),
+      cinza = numeric(0),
+      outlier = character(0)
+    )
+  )
 
   observeEvent(input$upload, {
     imgStore(readJPEG(input$upload$datapath))
+    coords(
+      data.frame(
+        ponto = integer(0),
+        x = numeric(0),
+        y = numeric(0),
+        cor = character(0),
+        cinza = numeric(0),
+        outlier = character(0)
+      )
+    )
   })
 
   observeEvent(input$apagar_botao, {
@@ -242,7 +308,17 @@ server <- function(session, input, output) {
   })
 
   observeEvent(input$apagar_tudo, {
-    coords(data.frame(ponto = integer(0), x = numeric(0), y = numeric(0), cor = character(0), cinza = numeric(0), outlier = character(0)))
+    coords(
+      data.frame(
+        ponto = integer(0),
+        x = numeric(0),
+        y = numeric(0),
+        cor = character(0),
+        cinza = numeric(0),
+        outlier = character(0)
+      )
+    )
+
     imgData <<- NULL
     if (file.exists(input$upload$datapath)) {
       for (i in 1:7) {
@@ -256,6 +332,21 @@ server <- function(session, input, output) {
 
   observeEvent(input$img_click, {
     click <- input$img_click
+
+    # Validação de limites
+    if (is.null(imgData)) {
+      return()
+    }
+
+    largura_img <- dim(imgData)[2]
+    altura_img <- dim(imgData)[1]
+
+    if (click[1] < 1 || click[2] < 1 ||
+      click[1] > largura_img || click[2] > altura_img) {
+      showNotification("Clique fora da imagem válida.", type = "error")
+      return()
+    }
+
     current_rows <- nrow(coords())
 
     # Calcula o ponto no ciclo de 1-4
@@ -310,9 +401,6 @@ server <- function(session, input, output) {
     if (is.null(imagem)) {
       return(NULL)
     }
-
-    coords(data.frame(ponto = integer(0), x = numeric(0), y = numeric(0), cor = character(0), cinza = numeric(0), outlier = character(0)))
-
     imagem <- input$upload
     imgData <<- readJPEG(imagem$datapath)
 
@@ -322,11 +410,26 @@ server <- function(session, input, output) {
     imgRaster <- dataURI(file = imagem$datapath, mime = imagem$type)
 
     tags$div(
-      style = "width: 100%; height: auto; overflow-x: auto; overflow-y: hidden;",
+      style = "width: 100%; height: auto; overflow-x: auto; overflow-y: auto;",
       tags$img(
-        src = imgRaster, id = "uploaded_img",
-        # width = paste0(500 * input$zoom_level, "px"),
-        onclick = "Shiny.setInputValue('img_click', [event.offsetX, event.offsetY], {priority: 'event'});"
+        src = imgRaster,
+        id = "uploaded_img",
+        style = paste0(
+          "transform: scale(", input$zoom_nivel, ");",
+          "transform-origin: top left; display: block; cursor: crosshair;"
+        ),
+        onclick = HTML("
+        (function(event){
+        const img = document.getElementById('uploaded_img');
+        const rect = img.getBoundingClientRect();
+        const zoom = parseFloat(getComputedStyle(img).transform.split(',')[0].replace('matrix(', ''));
+
+        const realX = Math.round((event.clientX - rect.left) / zoom);
+        const realY = Math.round((event.clientY - rect.top) / zoom);
+
+        Shiny.setInputValue('img_click', [realX, realY], {priority: 'event'});
+        })(event);
+        ")
       )
     )
   })
