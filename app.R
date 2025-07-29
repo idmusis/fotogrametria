@@ -140,24 +140,41 @@ ui <- dashboardPage(
     ### Elementos de entrada para a primeira aba --------
     conditionalPanel(
       condition = "input.tabs === 'app1'",
-      fileInput(
-        "upload",
-        "Escolha uma imagem:",
-        buttonLabel = "Selecione...",
-        placeholder = "Nenhum arquivo selecionado",
-        accept = c("image/jpeg", "image/png")
+      input_com_ajuda(
+        input_id = "upload",
+        label_text = "Escolha uma imagem:",
+        input_ui = fileInput(
+          inputId = "upload",
+          label = NULL,
+          buttonLabel = "Selecione...",
+          placeholder = "Nenhum arquivo selecionado",
+          accept = c("image/jpeg", "image/png")
+        ),
+        ajuda_id = "ajuda_upload",
+        ajuda_titulo = NULL,
+        ajuda_texto = "Carregue uma imagem (<b>JPG</b> ou <b>PNG</b>) que contenha <b>dois quadros</b> (frames/momentos) da trajetória que deseja analisar."
+      ),
+      tags$div(
+        style = "display: flex; align-items: center;",
+        class = "form-group shiny-input-container",
+        tags$label("Nível de zoom:", class = "control-label")
       ),
       sliderInput(
         inputId = "zoom_nivel",
-        label = "Nível de zoom:",
+        label = NULL,
         min = 0.1,
         max = 3,
         value = 1,
         step = 0.1
       ),
       tags$hr(),
+      tags$div(
+        style = "display: flex; align-items: center;",
+        class = "form-group shiny-input-container",
+        tags$label("Gerenciar marcações:", class = "control-label")
+      ),
       actionButton("apagar_botao", "Apagar último ponto"),
-      actionButton("apagar_tudo", "Apagar tudo"),
+      actionButton("apagar_tudo", "Apagar tudo")
     ),
 
     ### Elementos de entrada para a segunda aba ----------
@@ -887,7 +904,6 @@ server <- function(session, input, output) {
           geom_point(size = 0.3, color = "black") +
           geom_line(data = data.frame(x = spline_data$x, y = spline_data$y), aes(x = x, y = y), color = "blue") +
           labs(
-            title = "Tom de cinza médio por abscissas rotacionadas",
             x = "Abscissas rotacionadas",
             y = "Tom de cinza"
           ) +
