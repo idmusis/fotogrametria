@@ -6,7 +6,7 @@ pacman::p_load(base64enc, jpeg, shiny, shinydashboard, cowplot, imager, MASS, MV
 
 # Objetos ------------------------------------
 
-# Configurações de plots
+## Configurações do painel ------
 config_plotly <- function(p) {
   plotly::config(p,
     scrollZoom = FALSE,
@@ -16,6 +16,43 @@ config_plotly <- function(p) {
   )
 }
 
+input_com_ajuda <- function(input_id, label_text, input_ui, ajuda_id, ajuda_titulo = NULL, ajuda_texto) {
+  tagList(
+    tags$div(
+      style = "display: flex; align-items: center;",
+      class = "form-group shiny-input-container",
+      tags$label(label_text, class = "control-label"),
+      shinyBS::bsButton(ajuda_id, label = NULL, icon = icon("info-circle"), size = "extra-small")
+    ),
+    input_ui,
+    shinyBS::bsPopover(
+      ajuda_id, ajuda_titulo, ajuda_texto,
+      placement = "right",
+      options = list(container = "body", trigger = "hover focus")
+    )
+  )
+}
+
+titulo_com_ajuda <- function(ajuda_id, label_text, ajuda_texto, ajuda_titulo = NULL, centralizar = FALSE) {
+  alinhamento <- if (centralizar) "center" else "flex-start"
+
+  tagList(
+    tags$div(
+      style = paste0("display: flex; align-items: center; justify-content: ", alinhamento, "; gap: 8px;"),
+      tags$h4(label_text),
+      shinyBS::bsButton(ajuda_id, label = NULL, icon = icon("info-circle"), size = "extra-small")
+    ),
+    shinyBS::bsPopover(
+      id = ajuda_id,
+      title = ajuda_titulo,
+      content = ajuda_texto,
+      placement = "right",
+      options = list(container = "body", trigger = "hover focus")
+    )
+  )
+}
+
+## Funções de processamento -----
 # Gera repeticoes usando uma distribuicao normal bivariada
 
 gerar_repeticoes <- function(dados_originais, repeticoes) {
@@ -95,7 +132,7 @@ ui <- dashboardPage(
     ## Barra lateral -----
     sidebarMenu(
       id = "tabs",
-      menuItem("Coordenadas", tabName = "app1", icon = icon("dashboard")),
+      menuItem("Coordenadas", tabName = "app1", icon = icon("images")),
       menuItem("Intervalo de confiança", tabName = "app2", icon = icon("bar-chart")),
       tags$hr()
     ),
@@ -126,63 +163,98 @@ ui <- dashboardPage(
     ### Elementos de entrada para a segunda aba ----------
     conditionalPanel(
       condition = "input.tabs === 'app2'",
-      sliderInput(
-        "dp", "Filtro gaussiano isotrópico, desvio padrão:",
-        min = 0, max = 100, value = 0, step = 1
+      input_com_ajuda(
+        input_id = "dp",
+        label_text = "Filtro gaussiano isotrópico, desvio padrão:",
+        input_ui = sliderInput("dp", NULL, min = 0, max = 100, value = 0, step = 1),
+        ajuda_id = "ajuda_filtro",
+        ajuda_titulo = NULL,
+        ajuda_texto = "Aplica suavização à imagem antes do cálculo da linha de regressão, reduzindo ruídos locais."
       ),
+
       tags$hr(),
-      fileInput(
-        "arq",
-        "Arquivo com coordenadas dos pontos (apenas se não os gerou na outra aba):",
-        buttonLabel = "Selecione...",
-        placeholder = "Nenhum arquivo selecionado",
-        accept = c("text/csv", "text/comma-separated-values,text/plain", ".csv")
+
+      input_com_ajuda(
+        input_id = "arq",
+        label_text = "Arquivo com coordenadas (opcional):",
+        input_ui = fileInput("arq", NULL, buttonLabel = "Selecione...", placeholder = "Nenhum arquivo selecionado"),
+        ajuda_id = "ajuda_arquivo",
+        ajuda_titulo = NULL,
+        ajuda_texto = "Se você não marcou os pontos na aba anterior, pode carregar um arquivo CSV com as coordenadas."
       ),
-      numericInput(
-        "inicio_quadro",
-        "Marcação temporal do quadro inicial (s):",
-        value = 1.266,
-        min = 0,
-        step = 0.00001
+
+      input_com_ajuda(
+        input_id = "inicio_quadro",
+        label_text = "Marcação temporal do quadro inicial (s):",
+        input_ui = numericInput("inicio_quadro", NULL, value = 1.266, min = 0, step = 0.00001),
+        ajuda_id = "ajuda_inicio",
+        ajuda_titulo = NULL,
+        ajuda_texto = "Tempo do primeiro frame utilizado na estimativa de velocidade."
       ),
-      numericInput(
-        "fim_quadro",
-        "Marcação temporal do quadro final (s):",
-        value = 1.866,
-        min = 0,
-        step = 0.00001
+
+      input_com_ajuda(
+        input_id = "fim_quadro",
+        label_text = "Marcação temporal do quadro final (s):",
+        input_ui = numericInput("fim_quadro", NULL, value = 1.866, min = 0, step = 0.00001),
+        ajuda_id = "ajuda_fim",
+        ajuda_titulo = NULL,
+        ajuda_texto = "Tempo do segundo frame utilizado na estimativa de velocidade."
       ),
-      numericInput(
-        "erro_medio_mt",
-        "Erro médio da marcação temporal (ms/s):",
-        value = 0.881,
-        min = 0.01,
-        max = 5,
-        step = 0.00001
+
+      input_com_ajuda(
+        input_id = "erro_medio_mt",
+        label_text = "Erro médio da marcação temporal (ms/s):",
+        input_ui = numericInput("erro_medio_mt", NULL, value = 0.881, min = 0.01, max = 5, step = 0.00001),
+        ajuda_id = "ajuda_erro_medio",
+        ajuda_titulo = NULL,
+        ajuda_texto = "Erro médio (em milissegundos por segundo) estimado na marcação dos tempos."
       ),
-      numericInput(
-        "dp_erro_medio_mt", "DP do erro médio da marcação temporal (ms/s):",
-        value = 0.287, min = 0.01, max = 5, step = 0.00001
+
+      input_com_ajuda(
+        input_id = "dp_erro_medio_mt",
+        label_text = "DP do erro médio da marcação temporal (ms/s):",
+        input_ui = numericInput("dp_erro_medio_mt", NULL, value = 0.287, min = 0.01, max = 5, step = 0.00001),
+        ajuda_id = "ajuda_dp_erro",
+        ajuda_titulo = NULL,
+        ajuda_texto = "Desvio padrão do erro médio informado, para simulação de incertezas."
       ),
-      numericInput(
-        "dist_referencia", "Distância de referência (mm):",
-        value = 2002, min = 0.01, step = 0.00001
+
+      input_com_ajuda(
+        input_id = "dist_referencia",
+        label_text = "Distância de referência (mm):",
+        input_ui = numericInput("dist_referencia", NULL, value = 2002, min = 0.01, step = 0.00001),
+        ajuda_id = "ajuda_dist",
+        ajuda_titulo = NULL,
+        ajuda_texto = "Distância real conhecida entre os centros das rodas do veículo."
       ),
+
       tags$hr(),
-      numericInput(
-        "rep_mc", "Número de repetições pelo MMC:",
-        value = 100, min = 1, max = 10000, step = 0.00001
+
+      input_com_ajuda(
+        input_id = "rep_mc",
+        label_text = "Número de repetições pelo MMC:",
+        input_ui = numericInput("rep_mc", NULL, value = 100, min = 1, max = 10000, step = 1),
+        ajuda_id = "ajuda_rep",
+        ajuda_titulo = NULL,
+        ajuda_texto = "Número de simulações de Monte Carlo realizadas para estimar a velocidade média e os intervalos de confiança."
       ),
-      numericInput(
-        "nc", "Nível de confiança:",
-        value = 0.99, min = 0.00001, max = 0.99999, step = 0.00001
+
+      input_com_ajuda(
+        input_id = "nc",
+        label_text = "Nível de confiança:",
+        input_ui = numericInput("nc", NULL, value = 0.99, min = 0.00001, max = 0.99999, step = 0.00001),
+        ajuda_id = "ajuda_nc",
+        ajuda_titulo = NULL,
+        ajuda_texto = "Nível de confiança para os intervalos gerados da velocidade média estimada."
       ),
-      actionButton("calcular_botao", "Calcular!"),
+
+      actionButton("calcular_botao", "Calcular!")
     )
   ),
   dashboardBody(
     ## Conteúdo das saídas -----
     tabItems(
+      ### Página 1 -------
       tabItem(
         tabName = "app1",
         fluidRow(
@@ -215,7 +287,7 @@ ui <- dashboardPage(
           tableOutput("pixel_coords"),
           downloadButton("download_data", "Download das Coordenadas"),
 
-          ## Botões de ajuda ------------
+          #### Botões de ajuda ------------
           shinyBS::bsPopover(
             id = "ajuda_regressao",
             title = "Interpretação dos resultados",
@@ -225,40 +297,95 @@ ui <- dashboardPage(
               "<b>AIC:</b> Critério de informação – menor valor indica melhor ajuste.<br/><br/>",
               "<b>Teste de Mardia:</b> Verifica se os dados seguem distribuição normal bivariada:<br/>",
               "✓ Normal = não há evidência contra a normalidade (p > 0.05).<br/>",
-              "✗ Não normal = evidência contra a normalidade (p ≤ 0.05) em assimetria (skew) ou curtose (kurt).<br/>",
+              "✗ Não normal = evidência contra a normalidade (p ≤ 0.05) em assimetria (skew) ou curtose (kurt).<br/><br/>",
               "<b>É necessário que os dados sejam normais</b> para os pressupostos da segunda aba de cálculos."
             ),
             placement = "right",
             trigger = "hover",
-            options = list(container = "body")
+            options = list(container = "body", trigger = "hover focus")
           ),
           shinyBS::bsPopover(
             id = "ajuda_marcacao",
             title = "Como marcar os pontos na imagem",
             content = HTML(paste0(
-              "A imagem deve conter dois quadros (frames) da trajetória.<br/><br/>",
+              "A imagem deve conter dois quadros (frames/momentos) da trajetória.<br/><br/>",
               "Em cada quadro, marque dois pontos: a roda traseira e a roda dianteira correspondente.<br/><br/>",
               "<b>Ordem recomendada de marcação:</b><br/>",
-              "• Roda traseira do 1º frame (A)<br/>",
-              "• Roda dianteira do 1º frame (B)<br/>",
-              "• Roda traseira do 2º frame (C)<br/>",
-              "• Roda dianteira do 2º frame (D)<br/><br/>",
+              "• Roda traseira do 1º momento (A)<br/>",
+              "• Roda dianteira do 1º momento (B)<br/>",
+              "• Roda traseira do 2º momento (C)<br/>",
+              "• Roda dianteira do 2º momento (D)<br/><br/>",
               "<b>Repita esse ciclo pelo menos 7 vezes</b> (total de 28 cliques),<br/>",
               "para garantir que cada ponto tenha amostras suficientes para os testes estatísticos.<br/><br/>"
             )),
             placement = "right",
             trigger = "hover",
-            options = list(container = "body")
+            options = list(container = "body", trigger = "hover focus")
           ),
         )
       ),
+      ### Página 2 ------------
       tabItem(
         tabName = "app2",
         fluidRow(
+          titulo_com_ajuda(
+            ajuda_id = "ajuda_dispersao_cinza",
+            label_text = "Tom de cinza ao longo da trajetória",
+            ajuda_titulo = "Como interpretar os resultados",
+            ajuda_texto = HTML(paste0(
+              "Este gráfico mostra a variação do tom de cinza ao longo da trajetória, ",
+              "após a suavização da imagem com filtro gaussiano (parâmetro controlado à esquerda).<br/><br/>",
+              "Os <b>pontos pretos</b> indicam os valores suavizados extraídos da imagem, enquanto a <b>linha azul</b> representa ",
+              "uma curva de ajuste.<br/><br/>",
+              "<b>Linhas vermelhas verticais</b> indicam os pontos de referência, conforme as marcações (A-D). ",
+              "Se forem visíveis como picos ou vales distintos, isso valida as marcações feitas na aba anterior."
+            ))
+          ),
           plotly::plotlyOutput("dispersaoCinza"),
+
+          titulo_com_ajuda(
+            ajuda_id = "ajuda_scatter",
+            label_text = "Densidade dos pontos simulados",
+            ajuda_titulo = "Como interpretar os resultados",
+            ajuda_texto = HTML(paste0(
+              "Cada ponto neste gráfico representa uma simulação da posição dos centros das rodas, ",
+              "baseada no Método de Monte Carlo.<br/><br/>",
+              "O fundo em escala de cinza mostra a densidade dessas simulações: áreas mais escuras ",
+              "indicam maior concentração de pontos.<br/><br/>",
+              "A linha preta é a regressão final ajustada. Os símbolos vermelhos (A-D) mostram os ",
+              "centros médios simulados das rodas.<br/><br/>",
+              "Esse gráfico ajuda a visualizar a dispersão e a consistência das marcações simuladas."
+            ))
+          ),
           plotly::plotlyOutput("scatterPlot"),
+
+          titulo_com_ajuda(
+            ajuda_id = "ajuda_hist_vel",
+            label_text = "Velocidade estimada",
+            ajuda_titulo = "Como interpretar os resultados",
+            ajuda_texto = HTML(paste0(
+              "Este gráfico mostra a distribuição das velocidades estimadas a partir das simulações.<br/><br/>",
+              "A barra cinza representa quantas simulações resultaram em cada faixa de velocidade.<br/><br/>",
+              "<b>A linha azul</b> indica a média da velocidade estimada. <br/>",
+              "<b>Linhas vermelhas</b> marcam os limites do intervalo de confiança definido à esquerda (por exemplo, 99%).<br/><br/>",
+              "Esses valores indicam a incerteza da estimativa: quanto mais estreito o intervalo, mais confiável o resultado."
+            ))
+          ),
           plotly::plotlyOutput("histogramPlot"),
+
+          titulo_com_ajuda(
+            ajuda_id = "ajuda_hist_dist",
+            label_text = "Deslocamento estimado",
+            ajuda_titulo = "Como interpretar os resultados",
+            ajuda_texto = HTML(paste0(
+              "Este gráfico mostra a frequência acumulada do deslocamento estimado entre os quadros (em metros).<br/><br/>",
+              "A <b>curva azul</b> representa a proporção de simulações com deslocamento até determinado valor.<br/><br/>",
+              "<b>Linhas vermelhas</b> indicam o intervalo de confiança e a <b>linha verde</b> marca a média do deslocamento.<br/><br/>",
+              "Com isso, é possível verificar se o deslocamento está bem definido ou se há muita variação nas estimativas."
+            ))
+          ),
           plotly::plotlyOutput("histogramDistancia")
+
         )
       )
     )
@@ -549,7 +676,7 @@ server <- function(session, input, output) {
       dados <<- coords()
       dados$ponto <- factor(dados$ponto, levels = c(1, 2, 3, 4), labels = c("A", "B", "C", "D"))
 
-      write.csv(dados, file, row.names = FALSE)
+      write.csv2(dados, file, row.names = FALSE)
     }
   )
 
@@ -569,7 +696,7 @@ server <- function(session, input, output) {
   dataInput <- reactive({
     req(input$arq)
     inFile <- input$arq
-    read.csv(inFile$datapath, header = TRUE)
+    read.csv2(inFile$datapath, header = TRUE)
   })
 
   observeEvent(input$calcular_botao, {
@@ -913,35 +1040,36 @@ server <- function(session, input, output) {
           ) +
           theme_minimal(base_size = 13)
 
-        p <- p + geom_text(
-          aes(
-            x = percentil[1], y = (1 - input$nc) / 2,
-            label = sprintf("%.2f", percentil[1])
-          ),
+        p <- p + annotate(
+          "text",
+          x = percentil[1],
+          y = (1 - input$nc) / 2,
+          label = sprintf("%.2f", percentil[1]),
           vjust = 0,
           hjust = 0,
           size = 5
         )
 
-        p <- p + geom_text(
-          aes(
-            x = media, y = percentil_media,
-            label = sprintf("%.2f", media)
-          ),
+        p <- p + annotate(
+          "text",
+          x = media,
+          y = percentil_media,
+          label = sprintf("%.2f", media),
           vjust = 0,
           hjust = 1,
           size = 5
         )
 
-        p <- p + geom_text(
-          aes(
-            x = percentil[2], y = 1 - (1 - input$nc) / 2,
-            label = sprintf("%.2f", percentil[2])
-          ),
+        p <- p + annotate(
+          "text",
+          x = percentil[2],
+          y = 1 - (1 - input$nc) / 2,
+          label = sprintf("%.2f", percentil[2]),
           vjust = 0,
           hjust = 1,
           size = 5
         )
+
         message("plot histogram_distance finalizado")
         p %>%
           plotly::ggplotly() %>%
