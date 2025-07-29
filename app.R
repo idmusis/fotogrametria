@@ -142,12 +142,7 @@ ui <- dashboardPage(
           tags$div(
             style = "display: flex; align-items: center; gap: 8px;",
             tags$h4("Imagem enviada"),
-            actionButton(
-              inputId = "ajuda_marcacao",
-              label = NULL,
-              icon = icon("info-circle"),
-              style = "background-color: transparent; border: none"
-            )
+            shinyBS::bsButton("ajuda_marcacao", label = NULL, icon = icon("info-circle"), size = "extra-small")
           )
         ),
 
@@ -166,6 +161,11 @@ ui <- dashboardPage(
             shinyBS::bsButton("ajuda_regressao", label = NULL, icon = icon("info-circle"), size = "extra-small")
           ),
           verbatimTextOutput("regressaoTxt"),
+          # Marcações feitas
+          tags$div(
+            style = "display: flex; align-items: center; gap: 8px;",
+            tags$h4("Pontos marcados")
+          ),
           plotOutput("scatter_plot"),
           tableOutput("pixel_coords"),
           downloadButton("download_data", "Download das Coordenadas"),
@@ -180,9 +180,9 @@ ui <- dashboardPage(
               "<b>Teste de Mardia:</b> Verifica se os dados seguem distribuição normal bivariada:<br/>",
               "✓ Normal = não há evidência contra a normalidade (p > 0.05).<br/>",
               "✗ Não normal = evidência contra a normalidade (p ≤ 0.05) em assimetria (skew) ou curtose (kurt).<br/>",
-              "A verificação é feita separadamente para cada grupo de pontos (A–D)."
+              "<b>É necessário que os dados sejam normais</b> para os pressupostos da segunda aba de cálculos."
             ),
-
+            placement = "right",
             trigger = "hover",
             options = list(container = "body")
           ),
@@ -191,18 +191,17 @@ ui <- dashboardPage(
             title = "Como marcar os pontos na imagem",
             content = HTML(paste0(
               "A imagem deve conter dois quadros (frames) da trajetória.<br/><br/>",
-              "Em cada quadro, marque dois pontos: a roda traseira e a roda dianteira.<br/><br/>",
+              "Em cada quadro, marque dois pontos: a roda traseira e a roda dianteira correspondente.<br/><br/>",
               "<b>Ordem recomendada de marcação:</b><br/>",
               "• Roda traseira do 1º frame (A)<br/>",
               "• Roda dianteira do 1º frame (B)<br/>",
               "• Roda traseira do 2º frame (C)<br/>",
               "• Roda dianteira do 2º frame (D)<br/><br/>",
-              "Ou na ordem inversa: D, C, B, A — desde que seja consistente.<br/><br/>",
               "<b>Repita esse ciclo pelo menos 7 vezes</b> (total de 28 cliques),<br/>",
               "para garantir que cada ponto tenha amostras suficientes para os testes estatísticos.<br/><br/>"
             )),
             placement = "right",
-            trigger = "click",
+            trigger = "hover",
             options = list(container = "body")
           ),
         )
