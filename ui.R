@@ -143,6 +143,14 @@ ui <- shinydashboard::dashboardPage(
     )
   ),
   shinydashboard::dashboardBody(
+    tags$head(
+      tags$style(HTML("
+      .btn.btn-default.shiny-download-link.shiny-bound-output {
+        margin: 6px 5px 6px 15px;
+        color: #444;
+      }
+    "))
+    ),
     ## Conteúdo das saídas -----
     shinydashboard::tabItems(
       ### Página 1 -------

@@ -18,6 +18,7 @@ server <- function(session, input, output) {
     )
   )
 
+  dados_download <- reactiveVal(NULL)
   graficos_para_download <- reactiveVal(NULL)
 
   observeEvent(input$upload, {
@@ -306,14 +307,18 @@ server <- function(session, input, output) {
   })
 
   # Download das coordenadas em CSV
+
   output$download_data <- downloadHandler(
     filename = function() {
       paste("pontos_", Sys.Date(), ".csv", sep = "")
     },
     content = function(file) {
-      dados <<- coords()
-      dados$ponto <- factor(dados$ponto, levels = c(1, 2, 3, 4), labels = c("A", "B", "C", "D"))
-
+      req(coords())
+      dados$ponto <- factor(
+        dados$ponto,
+        levels = c(1, 2, 3, 4),
+        labels = c("A", "B", "C", "D")
+      )
       write.csv2(dados, file, row.names = FALSE)
     }
   )
@@ -357,13 +362,13 @@ server <- function(session, input, output) {
         "a" = "1", "b" = "2", "c" = "3", "d" = "4"
       )
 
+    dados_download(dados)
+
     withProgress(message = "Cálculo em progresso...", value = 0, {
       # Gráfico de dispersão
 
       # Gerar as repeticoes
       repeticoes_geradas <- gerar_repeticoes(dados, input$rep_mc)
-
-      # Agrupar os dados por 'serie' e aplicar a regressao Deming a cada grupo
       resultados <- repeticoes_geradas %>%
         group_by(serie) %>%
         dplyr::do(modelo = deming::deming(y ~ x, data = .))
@@ -433,7 +438,7 @@ server <- function(session, input, output) {
       #### Plotar o grafico de dispersao com cores identificando os grupos e series -----
       dispersaoCinza <- reactive({
         if (is.null(input$upload)) {
-          showNotification("Nenhuma imagem carregada.", type = "error")
+          showNotification("Nenhuma imagem carregada.", type = "warning")
           return(NULL)
         }
 
@@ -761,35 +766,40 @@ server <- function(session, input, output) {
 
       ## Exportar gráficos -----
       # Compor o gráfico histograma + boxplot
-      hist_p1 <- histogramPlot()$histograma +
-        ggplot2::ggtitle("Velocidade estimada") +
-        tema_graficos_export()
-      hist_p2 <- histogramPlot()$boxplot
 
-      histograma_boxplot <- cowplot::plot_grid(
-        hist_p1, hist_p2,
-        ncol = 1, align = "v", axis = "l", rel_heights = c(6 / 7, 1 / 7)
-      )
+      hist_obj <- tryCatch(histogramPlot(), error = function(e) NULL)
+
+      hist_p1 <- NULL
+      hist_p2 <- NULL
+      histograma_boxplot <- NULL
+
+      if (!is.null(hist_obj) &&
+        all(c("histograma", "boxplot") %in% names(hist_obj))) {
+        hist_p1 <- tema_graficos_export(hist_obj$histograma, "Velocidade estimada") +
+          theme(axis.title.x = element_blank())
+        hist_p2 <- hist_obj$boxplot
+
+        if (!is.null(hist_p1) && !is.null(hist_p2)) {
+          histograma_boxplot <- cowplot::plot_grid(
+            hist_p1, hist_p2,
+            ncol = 1, align = "v", axis = "l", rel_heights = c(6 / 7, 1 / 7)
+          )
+        }
+      }
 
       # Lista de gráficos com nome e objeto ggplot2
-      graficos_para_download(list(
+      graficos_export <- list(
         list(
           nome_arquivo = "1_pontos_marcados.png",
-          grafico = scatter_plot() +
-            ggplot2::ggtitle("Pontos marcados") +
-            tema_graficos_export()
+          grafico = tema_graficos_export(scatter_plot(), "Pontos marcados")
         ),
         list(
           nome_arquivo = "2_tom_de_cinza.png",
-          grafico = dispersaoCinza() +
-            ggplot2::ggtitle("Tom de cinza ao longo da trajetória") +
-            tema_graficos_export()
+          grafico = tema_graficos_export(dispersaoCinza(), "Tom de cinza ao longo da trajetória")
         ),
         list(
           nome_arquivo = "3_densidade_pontos_simulados.png",
-          grafico = scatterPlot() +
-            ggplot2::ggtitle("Densidade dos pontos simulados") +
-            tema_graficos_export()
+          grafico = tema_graficos_export(scatterPlot(), "Densidade dos pontos simulados")
         ),
         list(
           nome_arquivo = "4_velocidade_estimada.png",
@@ -797,11 +807,14 @@ server <- function(session, input, output) {
         ),
         list(
           nome_arquivo = "5_deslocamento_estimado.png",
-          grafico = histogramDistancia() +
-            ggplot2::ggtitle("Deslocamento estimado") +
-            tema_graficos_export()
+          grafico = tema_graficos_export(histogramDistancia(), "Deslocamento estimado")
         )
-      ))
+      )
+
+      # Remove gráficos que falharam
+      graficos_export <- purrr::keep(graficos_export, ~ !is.null(.x$grafico))
+
+      graficos_para_download(graficos_export)
     })
   })
 
@@ -814,19 +827,40 @@ server <- function(session, input, output) {
       dir <- tempfile()
       fs::dir_create(dir)
 
+      # Salvar os gráficos
       purrr::walk(graficos_para_download(), function(g) {
         caminho <- file.path(dir, g$nome_arquivo)
-
-        ragg::agg_png(caminho, width = 20, height = 15, units = "cm", res = 200)
+        ragg::agg_png(caminho, width = 20, height = 13, units = "cm", res = 200)
         print(g$grafico)
         grDevices::dev.off()
       })
 
+      # Salvar a imagem original, se disponível
+      if (!is.null(imgData)) {
+        img <- imgData
+        caminho_img <- file.path(dir, "imagem_original.png")
+
+        # Converter array para imagem e salvar
+        ragg::agg_png(caminho_img, width = dim(img)[2], height = dim(img)[1], res = 72)
+        grid::grid.raster(img)
+        grDevices::dev.off()
+      }
+
+      # Salvar a tabela CSV, se disponível
+      if (!is.null(dados_download())) {
+        tabela <- dados_download()
+        caminho_csv <- file.path(dir, paste0("pontos_", Sys.Date(), ".csv"))
+        readr::write_csv2(tabela, caminho_csv)
+      }
+
+      # Compactar tudo
       zip::zipr(
         zipfile = file,
         files = fs::dir_ls(dir),
         root = dir
       )
+
+      showNotification("Exportação concluída", type = "message", duration = 10)
     }
   )
 }

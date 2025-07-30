@@ -33,7 +33,8 @@ pacman::p_load(
   cowplot,
   grid,
   hexbin, # gráficos de densidade hexagonal
-  plotly # gráficos interativos
+  plotly, # gráficos interativos
+  shadowtext # adiciona borda a texto de gráficos exportados
 )
 
 # Objetos ------------------------------------
@@ -48,13 +49,66 @@ config_plotly <- function(p) {
   )
 }
 
-tema_graficos_export <- function(fonte = "sans") {
-  ggplot2::theme_minimal(base_size = 13, base_family = fonte) +
+substituir_annotate_por_shadowtext <- function(p,
+                                               bg.colour = "white",
+                                               bg.r = 0.1) {
+  if (!requireNamespace("shadowtext", quietly = TRUE)) {
+    return(p)
+  }
+
+  novas_layers <- purrr::map(p$layers, function(layer) {
+    if (inherits(layer$geom, "GeomText")) {
+      mapping <- layer$mapping
+      data <- layer$data
+      aes_params <- layer$aes_params
+
+      # Define cor padrão se não houver
+      cor_final <- aes_params$colour %||% "black"
+
+      # Remove cor de aes_params se presente, para evitar conflito
+      aes_params$colour <- NULL
+
+      nova <- do.call(shadowtext::geom_shadowtext, c(
+        list(
+          mapping = mapping,
+          data = data,
+          colour = cor_final,
+          bg.colour = bg.colour,
+          bg.r = bg.r
+        ),
+        aes_params
+      ))
+
+      return(nova)
+    } else {
+      return(layer)
+    }
+  })
+
+  p$layers <- novas_layers
+  p
+}
+
+tema_graficos_export <- function(p, titulo = NULL, fonte = "sans") {
+  if (!inherits(p, "gg")) {
+    return(NULL)
+  }
+
+  p <- p +
+    ggplot2::theme_minimal(base_size = 13, base_family = fonte) +
     ggplot2::theme(
       plot.title = ggplot2::element_text(
         hjust = 0.5, face = "bold", size = 16
       )
     )
+
+  if (!is.null(titulo)) {
+    p <- p + ggplot2::ggtitle(titulo)
+  }
+
+  p <- tryCatch(substituir_annotate_por_shadowtext(p), error = function(e) p)
+
+  tryCatch(p, error = function(e) NULL)
 }
 
 input_com_ajuda <- function(input_id, label_text, input_ui, ajuda_id, ajuda_titulo = NULL, ajuda_texto) {
