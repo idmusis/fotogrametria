@@ -18,6 +18,8 @@ server <- function(session, input, output) {
     )
   )
 
+  graficos_para_download <- reactiveVal(NULL)
+
   observeEvent(input$upload, {
     extensao <- tools::file_ext(input$upload$name)
 
@@ -194,8 +196,7 @@ server <- function(session, input, output) {
       )
     )
   })
-
-  output$scatter_plot <- renderPlot({
+  scatter_plot <- reactive({
     dados <<- coords()
     if (nrow(dados) == 0) {
       return(NULL)
@@ -233,6 +234,9 @@ server <- function(session, input, output) {
       theme(aspect.ratio = aspect_ratio)
 
     p
+  })
+  output$scatter_plot <- renderPlot({
+    scatter_plot()
   })
 
   output$regressaoTxt <- renderText({
@@ -427,7 +431,7 @@ server <- function(session, input, output) {
     withProgress(message = "Carregando gráficos...", value = 0, {
       ### Outputs --------------
       #### Plotar o grafico de dispersao com cores identificando os grupos e series -----
-      output$dispersaoCinza <- plotly::renderPlotly({
+      dispersaoCinza <- reactive({
         if (is.null(input$upload)) {
           showNotification("Nenhuma imagem carregada.", type = "error")
           return(NULL)
@@ -523,6 +527,14 @@ server <- function(session, input, output) {
           geom_text(data = cg_aux, aes(x = rot, label = label), vjust = 7, hjust = 1.5, size = 5, color = "red") +
           theme_minimal(base_size = 13)
 
+        p
+      })
+
+      output$dispersaoCinza <- plotly::renderPlotly({
+        req(dispersaoCinza())
+
+        p <- dispersaoCinza()
+
         message("plot dispersao_cinza finalizado")
         p %>%
           plotly::ggplotly() %>%
@@ -530,7 +542,7 @@ server <- function(session, input, output) {
       })
 
       #### Plotar o grafico de dispersao com cores identificando os grupos e series -------
-      output$scatterPlot <- plotly::renderPlotly({
+      scatterPlot <- reactive({
         p <- ggplot(repeticoes_geradas_rotacionadas, aes(x = x, y = y)) +
           geom_hex(bins = 120, aes(fill = ..count..)) +
           scale_fill_gradient(name = "Frequências", low = "gray", high = "black") +
@@ -542,6 +554,12 @@ server <- function(session, input, output) {
           ) +
           labs(x = "Abscissas rotacionadas", y = "Ordenadas rotacionadas") +
           theme_minimal(base_size = 13)
+        p
+      })
+
+      output$scatterPlot <- plotly::renderPlotly({
+        req(scatterPlot())
+        p <- scatterPlot()
 
         message("scatterplot finalizado")
         p %>%
@@ -550,7 +568,8 @@ server <- function(session, input, output) {
       })
 
       #### Plot histograma -------
-      output$histogramPlot <- plotly::renderPlotly({
+      histogramPlot <- reactive({
+        req(repeticoes_geradas)
         # Histograma
         # Ordenar os dados por 'serie' e 'ponto'
         repeticoes_geradas <- repeticoes_geradas %>%
@@ -636,6 +655,13 @@ server <- function(session, input, output) {
           ) +
           coord_flip()
 
+        list(histograma = p1, boxplot = p2)
+      })
+
+      output$histogramPlot <- plotly::renderPlotly({
+        req(histogramPlot())
+        p1 <- histogramPlot()$histograma
+        p2 <- histogramPlot()$boxplot
         # Organizando os dois graficos em um unico plot
         # p <- plot_grid(p1, p2, ncol = 1, align = "v", axis = "l", rel_heights = c(6 / 7, 1 / 7))
 
@@ -648,7 +674,7 @@ server <- function(session, input, output) {
       })
 
       #### Plot histogramaDistancia ---------
-      output$histogramDistancia <- plotly::renderPlotly({
+      histogramDistancia <- reactive({
         deslocamento <- as.data.frame(resultados$distancia * 1000)
         colnames(deslocamento) <- "d"
 
@@ -720,12 +746,87 @@ server <- function(session, input, output) {
           hjust = 1,
           size = 5
         )
+        p
+      })
+
+      output$histogramDistancia <- plotly::renderPlotly({
+        req(histogramDistancia())
+        p <- histogramDistancia()
 
         message("plot histogram_distance finalizado")
         p %>%
           plotly::ggplotly() %>%
           config_plotly()
       })
+
+      ## Exportar gráficos -----
+      # Compor o gráfico histograma + boxplot
+      hist_p1 <- histogramPlot()$histograma +
+        ggplot2::ggtitle("Velocidade estimada") +
+        tema_graficos_export()
+      hist_p2 <- histogramPlot()$boxplot
+
+      histograma_boxplot <- cowplot::plot_grid(
+        hist_p1, hist_p2,
+        ncol = 1, align = "v", axis = "l", rel_heights = c(6 / 7, 1 / 7)
+      )
+
+      # Lista de gráficos com nome e objeto ggplot2
+      graficos_para_download(list(
+        list(
+          nome_arquivo = "1_pontos_marcados.png",
+          grafico = scatter_plot() +
+            ggplot2::ggtitle("Pontos marcados") +
+            tema_graficos_export()
+        ),
+        list(
+          nome_arquivo = "2_tom_de_cinza.png",
+          grafico = dispersaoCinza() +
+            ggplot2::ggtitle("Tom de cinza ao longo da trajetória") +
+            tema_graficos_export()
+        ),
+        list(
+          nome_arquivo = "3_densidade_pontos_simulados.png",
+          grafico = scatterPlot() +
+            ggplot2::ggtitle("Densidade dos pontos simulados") +
+            tema_graficos_export()
+        ),
+        list(
+          nome_arquivo = "4_velocidade_estimada.png",
+          grafico = histograma_boxplot
+        ),
+        list(
+          nome_arquivo = "5_deslocamento_estimado.png",
+          grafico = histogramDistancia() +
+            ggplot2::ggtitle("Deslocamento estimado") +
+            tema_graficos_export()
+        )
+      ))
     })
   })
+
+  ## Botão de exportação -----
+  output$baixar_graficos <- downloadHandler(
+    filename = function() {
+      paste0("graficos_", Sys.Date(), ".zip")
+    },
+    content = function(file) {
+      dir <- tempfile()
+      fs::dir_create(dir)
+
+      purrr::walk(graficos_para_download(), function(g) {
+        caminho <- file.path(dir, g$nome_arquivo)
+
+        ragg::agg_png(caminho, width = 20, height = 15, units = "cm", res = 200)
+        print(g$grafico)
+        grDevices::dev.off()
+      })
+
+      zip::zipr(
+        zipfile = file,
+        files = fs::dir_ls(dir),
+        root = dir
+      )
+    }
+  )
 }

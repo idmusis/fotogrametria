@@ -30,6 +30,7 @@ pacman::p_load(
 
   # Visualização ----------------------
   ggplot2,
+  cowplot,
   grid,
   hexbin, # gráficos de densidade hexagonal
   plotly # gráficos interativos
@@ -45,6 +46,15 @@ config_plotly <- function(p) {
     displaylogo = FALSE,
     modeBarButtonsToRemove = c("select", "select2d", "lasso2d")
   )
+}
+
+tema_graficos_export <- function(fonte = "sans") {
+  ggplot2::theme_minimal(base_size = 13, base_family = fonte) +
+    ggplot2::theme(
+      plot.title = ggplot2::element_text(
+        hjust = 0.5, face = "bold", size = 16
+      )
+    )
 }
 
 input_com_ajuda <- function(input_id, label_text, input_ui, ajuda_id, ajuda_titulo = NULL, ajuda_texto) {

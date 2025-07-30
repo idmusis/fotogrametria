@@ -137,7 +137,9 @@ ui <- shinydashboard::dashboardPage(
         ajuda_titulo = NULL,
         ajuda_texto = "Nível de confiança para os intervalos gerados da velocidade média estimada."
       ),
-      actionButton("calcular_botao", "Calcular!")
+      actionButton("calcular_botao", "Calcular!"),
+      tags$hr(),
+      downloadButton("baixar_graficos", "Baixar gráficos (.zip)")
     )
   ),
   shinydashboard::dashboardBody(
