@@ -1,4 +1,10 @@
-# Estimativa Forense da Velocidade Veicular Usando Fotogrametria, Modelos Estatísticos de Distribuição Normal Bivariada e Análise de Reflectância
+<h1 align="center">Estimativa Forense da Velocidade Veicular Usando Fotogrametria, Modelos Estatísticos de Distribuição Normal Bivariada e Análise de Reflectância</h1>
+
+<p align="center">
+	<img src="https://img.shields.io/badge/R-276DC3.svg?style=default&logo=R&logoColor=white" alt="R">
+</p>
+
+<br>
 
 Este repositório GitHub oferece uma aplicação para a estimativa da velocidade de veículos em movimento linear, aplicando princípios matemáticos e estatísticos. Ideal para uso em investigações forenses e estudos de engenharia de tráfego, este método se destaca por sua precisão e aplicabilidade diversificada.
 
@@ -26,13 +32,11 @@ Para instalar o aplicativo em seu próprio servidor Shiny, siga as instruções 
 
 2. Abra a IDE RStudio, aqui adotado como sugestão, em seu computador, certificando-se de que você tenha uma distribuição padrão do R instalada.
 
-3. No RStudio, abra o arquivo "app.R" que você baixou do GitHub.
+3. No RStudio, abra qualquer um dos arquivos `global.R`, `ui.R` ou `server.R` que você baixou do GitHub.
 
-4. Verifique se todas as dependências necessárias, como os pacotes Shiny, rgdal, rgeos, raster, sp, shinydashboard, shinyjs e shinyWidgets, estão instaladas em seu ambiente de desenvolvimento. Caso contrário, instale-as usando o as funcionalidade do RStudio ou utilizando no terminal o comando 'install.packages'.
+4. Você pode iniciar o aplicativo clicando no botão "Run App" no canto superior direito do painel principal do RStudio. Ele será executado após a instalação de dependências, se necessário.
 
-5. Após ter todas as dependências instaladas e o código-fonte aberto no RStudio, você pode iniciar o aplicativo simplesmente clicando no botão "Run App" no painel superior direito do RStudio. 
-
-Um pequeno tutorial estádisponíveo em https://www.youtube.com/watch?v=tePeyTv-LN8
+Um pequeno tutorial está disponível em https://www.youtube.com/watch?v=tePeyTv-LN8
 
 ## Referência:
 Rubinstein, R. Y., & Kroese, D. P. (2016). Simulation and the Monte Carlo Method. Wiley Series in Probability and Statistics. John Wiley & Sons, Inc.
