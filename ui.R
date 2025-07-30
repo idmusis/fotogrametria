@@ -1,6 +1,16 @@
 # UI ---------------------
 ui <- shinydashboard::dashboardPage(
-  shinydashboard::dashboardHeader(title = "POLITEC/MT"),
+  shinydashboard::dashboardHeader(title = "POLITEC/MT", .list = tagList(
+    tags$li(
+      class = "nav-item dropdown",
+      tags$a(
+        class = "nav-link",
+        href = "https://github.com/demusis/fotogrametria",
+        icon("github", class = "fab fa-lg"),
+        target = "_blank"
+      )
+    )
+  )),
   shinydashboard::dashboardSidebar(
     ## Barra lateral -----
     shinydashboard::sidebarMenu(
