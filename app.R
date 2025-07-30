@@ -395,11 +395,16 @@ ui <- shinydashboard::dashboardPage(
             label_text = "Velocidade estimada",
             ajuda_titulo = "Como interpretar os resultados",
             ajuda_texto = HTML(paste0(
-              "Este gráfico mostra a distribuição das velocidades estimadas a partir das simulações.<br/><br/>",
-              "<b>A barra cinza</b> representa quantas simulações resultaram em cada faixa de velocidade.<br/><br/>",
-              "<b>A linha azul</b> indica a média da velocidade estimada. <br/>",
+              "Este gráfico mostra a <b>distribuição das velocidades estimadas a partir das simulações</b>. <br/>",
+              "A sobreposição das informações permite verificar se existem assimetrias, concentrações ou valores extremos.<hr>",
+              "As <b>barras cinzas</b> representa quantas simulações resultaram em cada faixa de velocidade.<br/>",
+              "A <b>linha azul</b> indica a média da velocidade estimada. <br/>",
               "<b>Linhas vermelhas</b> marcam os limites do intervalo de confiança definido à esquerda (por exemplo, 99%).<br/><br/>",
-              "Esses valores indicam a incerteza da estimativa: quanto mais estreito o intervalo, mais confiável o resultado."
+              "Esses valores indicam a incerteza da estimativa: quanto mais estreito o intervalo, mais confiável o resultado.<hr>",
+              "O <b>boxplot abaixo</b> resume as estimativas com os seguintes elementos:<br/>",
+              "A <b>caixa</b> mostra onde estão os 50% valores centrais (a maior parte das simulações).<br/>",
+              "A <b>linha no meio da caixa</b> é a <b>mediana</b>, que representa o valor central da distribuição.<br/>",
+              "As <b>linhas horizontais que saem da caixa</b> mostram os 25% mais baixos à esquerda e os 25% mais altos à direita."
             ))
           ),
           plotly::plotlyOutput("histogramPlot"),
@@ -1036,9 +1041,9 @@ server <- function(session, input, output) {
         p1 <- p1 + theme(axis.title.x = element_blank(), axis.text.x = element_blank(), axis.ticks.x = element_blank())
 
         # Criando o boxplot
-        p2 <- ggplot(velocidade, aes(x = Velocidade, y = 1)) +
+        p2 <- ggplot(velocidade, aes(x = 1, y = Velocidade)) +
           geom_boxplot() +
-          labs(x = "Velocidade (km/h)", y = "Frequencia") +
+          labs(x = "Frequência", y = "Velocidade (km/h)") +
           theme_minimal(base_size = 13) +
           theme(
             axis.text.y = element_blank(),
@@ -1048,7 +1053,8 @@ server <- function(session, input, output) {
             axis.line.y = element_blank(),
             axis.line.x = element_blank(),
             axis.title.y = element_blank()
-          )
+          ) +
+          coord_flip()
 
         # Organizando os dois graficos em um unico plot
         # p <- plot_grid(p1, p2, ncol = 1, align = "v", axis = "l", rel_heights = c(6 / 7, 1 / 7))
