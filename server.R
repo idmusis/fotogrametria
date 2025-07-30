@@ -136,7 +136,15 @@ server <- function(session, input, output) {
     if (nrow(last_coord) == 0) {
       return("-")
     } else {
-      paste("Dimensões: ", dimensoes, ", Ponto", last_coord$ponto, ", X:", last_coord$x, ", Y:", last_coord$y)
+      total_cliques <- nrow(dados)
+      ciclos_completos <- floor(total_cliques / 4)
+
+      paste0(
+        "Dimensões:  ", paste(dimensoes, collapse = " x "), "\n",
+        "Ciclos completos: ", ciclos_completos, " (", total_cliques, " cliques)", "\n",
+        "Último ponto: Ponto ", last_coord$ponto,
+        ", X: ", last_coord$x, " , Y: ", last_coord$y
+      )
     }
   })
 
