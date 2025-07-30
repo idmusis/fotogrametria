@@ -1,8 +1,35 @@
 # Aplicativo para estimativa de velocidade veicular
 # Autor Carlo Ralph De Musis
-# Versão: 0.84
+# Versão: 0.85
 
-pacman::p_load(base64enc, jpeg, png, shiny, shinydashboard, cowplot, imager, MASS, MVN, deming, dplyr, ggplot2, tidyr, grid, hexbin, plotly, shinyBS)
+# Pacotes ------------------
+pacman::p_load(
+  # Interface Shiny
+  shiny,
+  shinydashboard,
+  shinyBS, # popovers
+
+  # Manipulação de imagem
+  base64enc,
+  jpeg,
+  png,
+  imager, # suavização de imagem
+
+  # Estatística e modelagem ----------
+  MASS, # simulação de distribuição normal multivariada (mvrnorm)
+  MVN, # testes de normalidade multivariada (ex: Mardia)
+  deming, # regressão Deming (erro em x e y)
+
+  # Manipulação de dados -------------
+  dplyr,
+  tidyr,
+
+  # Visualização ----------------------
+  ggplot2,
+  grid,
+  hexbin, # gráficos de densidade hexagonal
+  plotly # gráficos interativos
+)
 
 # Objetos ------------------------------------
 
@@ -65,7 +92,7 @@ gerar_repeticoes <- function(dados_originais, repeticoes) {
     matriz_cov <- cov(dados_grupo[, c("x", "y")]) # Matriz de covariancia do grupo atual
 
     repeticoes_grupo <- lapply(1:repeticoes, function(i) {
-      repeticao <- mvrnorm(1, mu = media, Sigma = matriz_cov)
+      repeticao <- MASS::mvrnorm(1, mu = media, Sigma = matriz_cov)
       data.frame(serie = i, ponto = grupo, x = repeticao[1], y = repeticao[2])
     })
 
@@ -83,7 +110,7 @@ hex_cinza <- function(hex_colors) {
   # Aplica a conversão a cada cor no vetor usando sapply
   cinza_values <- sapply(hex_colors, function(hex_color) {
     # Converte hexadecimal para RGB
-    rgb <- col2rgb(hex_color)
+    rgb <- grDevices::col2rgb(hex_color)
 
     # Converte RGB para cinza usando a fórmula de luminosidade
     cinza <- (rgb[1, ] + rgb[2, ] + rgb[3, ]) / 3
@@ -126,14 +153,14 @@ rotacionar_pontos <- function(df, angulo) {
 }
 
 # UI ---------------------
-ui <- dashboardPage(
-  dashboardHeader(title = "POLITEC/MT"),
-  dashboardSidebar(
+ui <- shinydashboard::dashboardPage(
+  shinydashboard::dashboardHeader(title = "POLITEC/MT"),
+  shinydashboard::dashboardSidebar(
     ## Barra lateral -----
-    sidebarMenu(
+    shinydashboard::sidebarMenu(
       id = "tabs",
-      menuItem("Coordenadas", tabName = "app1", icon = icon("images")),
-      menuItem("Intervalo de confiança", tabName = "app2", icon = icon("bar-chart")),
+      shinydashboard::menuItem("Coordenadas", tabName = "app1", icon = icon("images")),
+      shinydashboard::menuItem("Processamento", tabName = "app2", icon = icon("bar-chart")),
       tags$hr()
     ),
 
@@ -257,11 +284,11 @@ ui <- dashboardPage(
       actionButton("calcular_botao", "Calcular!")
     )
   ),
-  dashboardBody(
+  shinydashboard::dashboardBody(
     ## Conteúdo das saídas -----
-    tabItems(
+    shinydashboard::tabItems(
       ### Página 1 -------
-      tabItem(
+      shinydashboard::tabItem(
         tabName = "app1",
         fluidRow(
           tags$div(
@@ -331,7 +358,7 @@ ui <- dashboardPage(
         )
       ),
       ### Página 2 ------------
-      tabItem(
+      shinydashboard::tabItem(
         tabName = "app2",
         fluidRow(
           titulo_com_ajuda(
@@ -556,7 +583,7 @@ server <- function(session, input, output) {
     dimensoes_aux <<- dim(imgData)
     dimensoes <<- paste(dimensoes_aux[2], "x", dimensoes_aux[1])
 
-    imgRaster <- dataURI(file = imagem$datapath, mime = imagem$type)
+    imgRaster <- base64enc::dataURI(file = imagem$datapath, mime = imagem$type)
 
     tags$div(
       style = "width: 100%; height: auto; overflow-x: auto; overflow-y: auto;",
@@ -592,7 +619,7 @@ server <- function(session, input, output) {
     dados$ponto <- factor(dados$ponto, levels = c(1, 2, 3, 4), labels = c("A", "B", "C", "D"))
     dados$y_mod <- dimensoes_aux[1] - dados$y
 
-    imagem_grob <- rasterGrob(imgStore(), width = unit(1, "npc"), height = unit(1, "npc"), interpolate = TRUE)
+    imagem_grob <- grid::rasterGrob(imgStore(), width = unit(1, "npc"), height = unit(1, "npc"), interpolate = TRUE)
 
     xmin <- 0
     xmax <- dimensoes_aux[2]
@@ -736,10 +763,10 @@ server <- function(session, input, output) {
     }
 
     # Garantindo formato
-    dados$ponto <- dplyr::recode(
-      tolower(dados$ponto),
-      "a" = "1", "b" = "2", "c" = "3", "d" = "4"
-    )
+    dados$ponto <- tolower(dados$ponto) |>
+      dplyr::recode(
+        "a" = "1", "b" = "2", "c" = "3", "d" = "4"
+      )
 
     withProgress(message = "Cálculo em progresso...", value = 0, {
       # Gráfico de dispersão
@@ -750,7 +777,7 @@ server <- function(session, input, output) {
       # Agrupar os dados por 'serie' e aplicar a regressao Deming a cada grupo
       resultados <- repeticoes_geradas %>%
         group_by(serie) %>%
-        do(modelo = deming(y ~ x, data = .))
+        dplyr::do(modelo = deming::deming(y ~ x, data = .))
 
       # Extrair os coeficientes de cada regressao e salva-los em uma lista
       coeficientes <- lapply(resultados$modelo, coefficients)
@@ -770,12 +797,12 @@ server <- function(session, input, output) {
 
       # Calcular o centro de gravidade por 'ponto'
       cg <<- repeticoes_geradas %>%
-        group_by(ponto) %>%
-        summarise(centro_gravidade_x = mean(x), centro_gravidade_y = mean(y))
+        dplyr::group_by(ponto) %>%
+        dplyr::summarise(centro_gravidade_x = mean(x), centro_gravidade_y = mean(y))
 
       # Calcular o ponto na reta de regressao mais proximo do centro de gravidade
       centros_gravidade <- cg %>%
-        mutate(
+        dplyr::mutate(
           projecao_x = (centro_gravidade_x + inclinacao * centro_gravidade_y - inclinacao * intercepto) / (1 + inclinacao^2),
           projecao_y = inclinacao * projecao_x + intercepto
         )
@@ -833,7 +860,7 @@ server <- function(session, input, output) {
           return(NULL)
         }
 
-        smoothed_img <- isoblur(img, sigma = input$dp)
+        smoothed_img <- imager::isoblur(img, sigma = input$dp)
 
 
         temp_file <- tempfile(pattern = "aux", fileext = ".jpg")
@@ -845,7 +872,7 @@ server <- function(session, input, output) {
         }
 
         imgData <<- tryCatch(
-          as.array(readJPEG(temp_file)),
+          as.array(jpeg::readJPEG(temp_file)),
           error = function(e) {
             showNotification("Erro ao ler imagem suavizada.", type = "error")
             return(NULL)
@@ -863,7 +890,7 @@ server <- function(session, input, output) {
         resultados <- data.frame(x = integer(), y = integer(), cinza = numeric())
 
         # Regressão
-        regressao_deming <- deming(y ~ x, data = dados)
+        regressao_deming <- deming::deming(y ~ x, data = dados)
 
         # Extraia os coeficientes
         beta_0 <- coef(regressao_deming)[1] # Intercepto
@@ -895,8 +922,8 @@ server <- function(session, input, output) {
         cg_aux <- cg_aux[, 1]
         colnames(cg_aux) <- "rot"
         cg_aux <- cg_aux %>%
-          arrange(rot) %>%
-          mutate(label = LETTERS[1:n()])
+          dplyr::arrange(rot) %>%
+          dplyr::mutate(label = LETTERS[1:n()])
 
         spline_data <- smooth.spline(resultados$rot, resultados$cinza, cv = TRUE)
 
@@ -921,7 +948,7 @@ server <- function(session, input, output) {
       output$scatterPlot <- plotly::renderPlotly({
         p <- ggplot(repeticoes_geradas_rotacionadas, aes(x = x, y = y)) +
           geom_hex(bins = 120, aes(fill = ..count..)) +
-          scale_fill_gradient(name = "Frequencias", low = "gray", high = "black") +
+          scale_fill_gradient(name = "Frequências", low = "gray", high = "black") +
           geom_abline(intercept = intercepto, slope = inclinacao, color = "black") +
           geom_point(data = centros_gravidade_rotacionados, aes(x = x, y = y), color = "lightblue", shape = 7, size = 1) +
           geom_text(
@@ -942,15 +969,15 @@ server <- function(session, input, output) {
         # Histograma
         # Ordenar os dados por 'serie' e 'ponto'
         repeticoes_geradas <- repeticoes_geradas %>%
-          arrange(serie, ponto)
+          dplyr::arrange(serie, ponto)
 
         # Agrupar os dados por 'serie' e aplicar a funcao 'distancia' a cada grupo
         resultados <<- repeticoes_geradas %>%
-          group_by(serie) %>%
-          summarise(Ax = x[1], Ay = y[1], Bx = x[2], By = y[2], Cx = x[3], Cy = y[3], Dx = x[4], Dy = y[4]) %>%
-          rowwise() %>%
-          mutate(distancia = distancia(Ax, Ay, Bx, By, Cx, Cy, Dx, Dy, l)) %>%
-          ungroup()
+          dplyr::group_by(serie) %>%
+          dplyr::summarise(Ax = x[1], Ay = y[1], Bx = x[2], By = y[2], Cx = x[3], Cy = y[3], Dx = x[4], Dy = y[4]) %>%
+          dplyr::rowwise() %>%
+          dplyr::mutate(distancia = distancia(Ax, Ay, Bx, By, Cx, Cy, Dx, Dy, l)) %>%
+          dplyr::ungroup()
 
         # Remove valores NA e calcula a velocidade
         dt <- input$fim_quadro - input$inicio_quadro # Tempo entre os frames (s)
