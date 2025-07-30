@@ -3,6 +3,10 @@
 # Versão: 0.85
 
 # Pacotes ------------------
+if (!requireNamespace("pacman", quietly = TRUE)) {
+  install.packages("pacman")
+}
+
 pacman::p_load(
   # Interface Shiny
   shiny,
