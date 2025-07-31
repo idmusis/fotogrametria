@@ -236,7 +236,7 @@ ui <- shinydashboard::dashboardPage(
               "após a suavização da imagem com filtro gaussiano (parâmetro controlado à esquerda).<br/><br/>",
               "Os <b>pontos pretos</b> indicam os valores suavizados extraídos da imagem, enquanto a <b>linha azul</b> representa ",
               "uma curva de ajuste.<br/><br/>",
-              "<b>Linhas vermelhas verticais</b> indicam os pontos de referência, conforme as marcações (A-D). ",
+              "<b>Linhas vermelhas verticais (tracejadas)</b> indicam os pontos de referência, conforme as marcações (A-D). ",
               "Se forem visíveis como picos ou vales distintos, isso valida as marcações feitas na aba anterior."
             ))
           ),
@@ -264,8 +264,8 @@ ui <- shinydashboard::dashboardPage(
               "Este gráfico mostra a <b>distribuição das velocidades estimadas a partir das simulações</b>. <br/>",
               "A sobreposição das informações permite verificar se existem assimetrias, concentrações ou valores extremos.<hr>",
               "As <b>barras cinzas</b> representa quantas simulações resultaram em cada faixa de velocidade.<br/>",
-              "A <b>linha azul</b> indica a média da velocidade estimada. <br/>",
-              "<b>Linhas vermelhas</b> marcam os limites do intervalo de confiança definido à esquerda (por exemplo, 99%).<br/><br/>",
+              "A <b>linha verde (sólida)</b> indica a média da velocidade estimada. <br/>",
+              "<b>Linhas vermelhas (tracejadas)</b> marcam os limites do intervalo de confiança definido à esquerda (por exemplo, 99%).<br/><br/>",
               "Esses valores indicam a incerteza da estimativa: quanto mais estreito o intervalo, mais confiável o resultado.<hr>",
               "O <b>boxplot abaixo</b> resume as estimativas com os seguintes elementos:<br/>",
               "A <b>caixa</b> mostra onde estão os 50% valores centrais (a maior parte das simulações).<br/>",
@@ -281,7 +281,7 @@ ui <- shinydashboard::dashboardPage(
             ajuda_texto = HTML(paste0(
               "Este gráfico mostra a frequência acumulada do deslocamento estimado entre os quadros (em metros).<br/><br/>",
               "A <b>curva azul</b> representa a proporção de simulações com deslocamento até determinado valor.<br/><br/>",
-              "<b>Linhas vermelhas</b> indicam o intervalo de confiança e a <b>linha verde</b> marca a média do deslocamento.<br/><br/>",
+              "<b>Linhas vermelhas (tracejadas)</b> indicam o intervalo de confiança e a <b>linha verde (sólida)</b> marca a média do deslocamento.<br/><br/>",
               "Com isso, é possível verificar se o deslocamento está bem definido ou se há muita variação nas estimativas."
             ))
           ),

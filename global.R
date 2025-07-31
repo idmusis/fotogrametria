@@ -40,6 +40,12 @@ pacman::p_load(
 # Objetos ------------------------------------
 
 ## Configurações do painel ------
+
+### Gráficos ----
+
+# Paleta de cores acessível para daltonismo definida por Paul Tol
+paleta <- c("#EE7733", "#0077BB","#33BBEE", "#EE3377","#CC3311", "#009988", "#BBBBBB")
+
 config_plotly <- function(p) {
   plotly::config(p,
     scrollZoom = FALSE,
@@ -110,6 +116,8 @@ tema_graficos_export <- function(p, titulo = NULL, fonte = "sans") {
 
   tryCatch(p, error = function(e) NULL)
 }
+
+### Botões de ajuda ------
 
 input_com_ajuda <- function(input_id, label_text, input_ui, ajuda_id, ajuda_titulo = NULL, ajuda_texto) {
   tagList(

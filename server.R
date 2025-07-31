@@ -222,7 +222,7 @@ server <- function(session, input, output) {
       geom_point(aes(shape = ponto, color = ponto), size = 7, alpha = 0.5) +
       labs(shape = "Pontos", color = "Pontos", x = "", y = "") +
       scale_shape_manual(values = c(16, 17, 18, 19)) +
-      scale_color_manual(values = c("red", "blue", "green", "purple")) +
+      scale_color_manual(values = paleta) +
       xlim(xmin, xmax) +
       ylim(ymin, ymax) +
       theme_minimal(base_size = 13) +
@@ -523,13 +523,13 @@ server <- function(session, input, output) {
 
         p <- ggplot(resultados, aes(x = rot, y = cinza)) +
           geom_point(size = 0.3, color = "black") +
-          geom_line(data = data.frame(x = spline_data$x, y = spline_data$y), aes(x = x, y = y), color = "blue") +
+          geom_line(data = data.frame(x = spline_data$x, y = spline_data$y), aes(x = x, y = y), color = paleta[2]) +
           labs(
             x = "Abscissas rotacionadas",
             y = "Tom de cinza"
           ) +
-          geom_vline(data = cg_aux, aes(xintercept = rot), linetype = "dashed", color = "red") +
-          geom_text(data = cg_aux, aes(x = rot, label = label), vjust = 7, hjust = 1.5, size = 5, color = "red") +
+          geom_vline(data = cg_aux, aes(xintercept = rot), linetype = "dashed", color = paleta[1]) +
+          geom_text(data = cg_aux, aes(x = rot, label = label), vjust = 7, hjust = 1.5, size = 5, color = paleta[1]) +
           theme_minimal(base_size = 13)
 
         p
@@ -550,12 +550,12 @@ server <- function(session, input, output) {
       scatterPlot <- reactive({
         p <- ggplot(repeticoes_geradas_rotacionadas, aes(x = x, y = y)) +
           geom_hex(bins = 120, aes(fill = ..count..)) +
-          scale_fill_gradient(name = "Frequências", low = "gray", high = "black") +
+          scale_fill_gradient(name = "Frequências", low = paleta[7], high = "black") +
           geom_abline(intercept = intercepto, slope = inclinacao, color = "black") +
-          geom_point(data = centros_gravidade_rotacionados, aes(x = x, y = y), color = "lightblue", shape = 7, size = 1) +
+          geom_point(data = centros_gravidade_rotacionados, aes(x = x, y = y), color = paleta[3], shape = 7, size = 1) +
           geom_text(
             data = centros_gravidade_rotacionados, aes(x = x, label = ponto),
-            vjust = -0.25, hjust = 1.5, size = 5, color = "red"
+            vjust = -0.25, hjust = 1.5, size = 5, color = paleta[1]
           ) +
           labs(x = "Abscissas rotacionadas", y = "Ordenadas rotacionadas") +
           theme_minimal(base_size = 13)
@@ -618,10 +618,10 @@ server <- function(session, input, output) {
 
         names(velocidade) <- "Velocidade"
         p1 <- ggplot(velocidade, aes(x = Velocidade)) +
-          geom_histogram(binwidth = 0.5, color = "black", fill = "lightgray") +
-          geom_vline(aes(xintercept = media), color = "blue", linetype = "dashed", linewidth = 0.5) +
-          geom_vline(aes(xintercept = percentis[1]), color = "red", linetype = "dashed", linewidth = 0.5) +
-          geom_vline(aes(xintercept = percentis[2]), color = "red", linetype = "dashed", linewidth = 0.5) +
+          geom_histogram(binwidth = 0.5, color = "black", fill = paleta[7]) +
+          geom_vline(aes(xintercept = media), color = paleta[6], linetype = "solid", linewidth = 0.5) +
+          geom_vline(aes(xintercept = percentis[1]), color = paleta[1], linetype = "dashed", linewidth = 0.5) +
+          geom_vline(aes(xintercept = percentis[2]), color = paleta[1], linetype = "dashed", linewidth = 0.5) +
           labs(x = "Velocidade (km/h)", y = "Frequência") +
           theme_minimal(base_size = 13)
 
@@ -630,15 +630,15 @@ server <- function(session, input, output) {
         p1 <- p1 +
           annotate("text",
             x = media, y = y_max, label = round(media, 1),
-            vjust = 0, color = "blue", size = 5
+            vjust = 0, color = paleta[6], size = 5
           ) +
           annotate("text",
             x = percentis[1], y = y_max, label = round(percentis[1], 1),
-            vjust = 0, color = "red", size = 5
+            vjust = 0, color = paleta[1], size = 5
           ) +
           annotate("text",
             x = percentis[2], y = y_max, label = round(percentis[2], 1),
-            vjust = 0, color = "red", size = 5
+            vjust = 0, color = paleta[1], size = 5
           )
 
         # Removendo o eixo x do histograma
@@ -699,22 +699,22 @@ server <- function(session, input, output) {
         )
 
         p <- ggplot(deslocamento, aes(x = d)) +
-          stat_ecdf(geom = "line", colour = "blue", size = 1) +
+          stat_ecdf(geom = "line", colour = paleta[2], size = 1) +
           geom_hline(
             yintercept = percentil_media,
-            colour = "green",
-            linetype = "dashed",
+            colour = paleta[6],
+            linetype = "solid",
             size = 0.5
           ) +
           geom_hline(
             yintercept = (1 - input$nc) / 2,
-            colour = "red",
+            colour = paleta[1],
             linetype = "dashed",
             size = 0.5
           ) +
           geom_hline(
             yintercept = 1 - (1 - input$nc) / 2,
-            colour = "red",
+            colour = paleta[1],
             linetype = "dashed",
             size = 0.5
           ) +
@@ -731,7 +731,8 @@ server <- function(session, input, output) {
           label = sprintf("%.2f", percentil[1]),
           vjust = 0,
           hjust = 0,
-          size = 5
+          size = 5,
+          colour = paleta[1]
         )
 
         p <- p + annotate("text",
@@ -740,7 +741,8 @@ server <- function(session, input, output) {
           label = sprintf("%.2f", media),
           vjust = 0,
           hjust = 1,
-          size = 5
+          size = 5,
+          colour = paleta[6]
         )
 
         p <- p + annotate("text",
@@ -749,7 +751,8 @@ server <- function(session, input, output) {
           label = sprintf("%.2f", percentil[2]),
           vjust = 0,
           hjust = 1,
-          size = 5
+          size = 5,
+          colour = paleta[1]
         )
         p
       })
