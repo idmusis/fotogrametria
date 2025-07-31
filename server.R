@@ -1,12 +1,14 @@
 # Servidor ---------------------------------
 server <- function(session, input, output) {
+  ## Objetos -------
   dimensoes <<- NULL
   imgData <<- NULL
   dados <<- NULL
 
   imgStore <- reactiveVal(NULL)
 
-  ## Lógica da primeira aba ----------------
+  tabela_parametros <- reactiveVal(NULL)
+
   coords <- reactiveVal(
     data.frame(
       ponto = integer(0),
@@ -20,6 +22,8 @@ server <- function(session, input, output) {
 
   dados_download <- reactiveVal(NULL)
   graficos_para_download <- reactiveVal(NULL)
+
+  ## Lógica da primeira aba ----------------
 
   observeEvent(input$upload, {
     extensao <- tools::file_ext(input$upload$name)
@@ -122,10 +126,10 @@ server <- function(session, input, output) {
         (click[1] < Q1x - 1.5 * IQRx || click[1] > Q3x + 1.5 * IQRx)) {
         new_coords$outlier <- "Sim"
       } else {
-        new_coords$outlier <- "Não"
+        new_coords$outlier <- "Nao"
       }
     } else {
-      new_coords$outlier <- "Calibração"
+      new_coords$outlier <- "Calibracao"
     }
     dados <<- coords(rbind(coords(), new_coords))
     dados
@@ -412,7 +416,9 @@ server <- function(session, input, output) {
         }
       )
 
-      if (is.null(df_coeficientes)) return()
+      if (is.null(df_coeficientes)) {
+        return()
+      }
 
       # Calcular a media e os intervalos de confianca dos coeficientes
       media_coeficientes <- colMeans(df_coeficientes)
@@ -663,17 +669,27 @@ server <- function(session, input, output) {
 
         y_max <- max(ggplot_build(p1)$data[[1]]$count, na.rm = TRUE) * 1.05
 
+        x_gap <- range(c(media, percentis), na.rm = TRUE) %>%
+          diff() * 0.04
+
+        y_gap <- range(c(
+          media,
+          (1 - input$nc) / 2,
+          1 - (1 - input$nc) / 2
+        ), na.rm = TRUE) %>%
+          diff() * 0.04
+
         p1 <- p1 +
           annotate("text",
-            x = media, y = y_max, label = round(media, 1),
+            x = media + x_gap, y = y_max, label = round(media, 1),
             vjust = 0, color = paleta[6], size = 5
           ) +
           annotate("text",
-            x = percentis[1], y = y_max, label = round(percentis[1], 1),
+            x = percentis[1] + x_gap, y = y_max, label = round(percentis[1], 1),
             vjust = 0, color = paleta[1], size = 5
           ) +
           annotate("text",
-            x = percentis[2], y = y_max, label = round(percentis[2], 1),
+            x = percentis[2] + x_gap, y = y_max, label = round(percentis[2], 1),
             vjust = 0, color = paleta[1], size = 5
           )
 
@@ -762,9 +778,19 @@ server <- function(session, input, output) {
           ) +
           theme_minimal(base_size = 13)
 
+        x_gap <- range(c(media, percentil), na.rm = TRUE) %>%
+          diff() * 0.04
+
+        y_gap <- range(c(
+          percentil_media,
+          (1 - input$nc) / 2,
+          1 - (1 - input$nc) / 2
+        ), na.rm = TRUE) %>%
+          diff() * 0.04
+
         p <- p + annotate("text",
           x = percentil[1],
-          y = (1 - input$nc) / 2,
+          y = (1 - input$nc) / 2 - y_gap,
           label = sprintf("%.2f", percentil[1]),
           vjust = 0,
           hjust = 0,
@@ -773,8 +799,8 @@ server <- function(session, input, output) {
         )
 
         p <- p + annotate("text",
-          x = media,
-          y = percentil_media,
+          x = media - x_gap,
+          y = percentil_media + y_gap,
           label = sprintf("%.2f", media),
           vjust = 0,
           hjust = 1,
@@ -784,7 +810,7 @@ server <- function(session, input, output) {
 
         p <- p + annotate("text",
           x = percentil[2],
-          y = 1 - (1 - input$nc) / 2,
+          y = 1 - (1 - input$nc) / 2 + y_gap,
           label = sprintf("%.2f", percentil[2]),
           vjust = 0,
           hjust = 1,
@@ -803,6 +829,24 @@ server <- function(session, input, output) {
           plotly::ggplotly() %>%
           config_plotly()
       })
+
+      tabela_parametros(tibble::tibble(
+        parametro = c(
+          "dp_filtro_gaussiano", "inicio_quadro_tempo", "fim_quadro_tempo",
+          "erro_medio_tempo", "dp_erro_medio_tempo", "dist_referencia",
+          "repeticoes_mc", "nivel_confianca"
+        ),
+        valor = c(
+          input$dp,
+          input$inicio_quadro,
+          input$fim_quadro,
+          input$erro_medio_mt,
+          input$dp_erro_medio_mt,
+          input$dist_referencia,
+          input$rep_mc,
+          input$nc
+        )
+      ))
 
       ## Exportar gráficos -----
       # Compor o gráfico histograma + boxplot
@@ -891,6 +935,12 @@ server <- function(session, input, output) {
         tabela <- dados_download()
         caminho_csv <- file.path(dir, paste0("pontos_", Sys.Date(), ".csv"))
         readr::write_csv2(tabela, caminho_csv)
+      }
+
+      # Salvar a tabela de parâmetros utilizados
+      if (!is.null(tabela_parametros())) {
+        caminho_csv <- file.path(dir, paste0("parametros_utilizados_", Sys.Date(), ".csv"))
+        readr::write_csv2(tabela_parametros(), caminho_csv)
       }
 
       # Compactar tudo

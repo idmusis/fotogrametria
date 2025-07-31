@@ -44,7 +44,7 @@ pacman::p_load(
 ### Gráficos ----
 
 # Paleta de cores acessível para daltonismo definida por Paul Tol
-paleta <- c("#EE7733", "#0077BB","#33BBEE", "#EE3377","#CC3311", "#009988", "#BBBBBB")
+paleta <- c("#EE7733", "#0077BB", "#33BBEE", "#EE3377", "#CC3311", "#009988", "#BBBBBB")
 
 config_plotly <- function(p) {
   plotly::config(p,
@@ -176,18 +176,21 @@ gerar_repeticoes <- function(dados_originais, repeticoes) {
       next
     }
 
-    repeticoes_grupo <- tryCatch({
-      lapply(1:repeticoes, function(i) {
-        repeticao <- MASS::mvrnorm(1, mu = media, Sigma = matriz_cov)
-        data.frame(serie = i, ponto = grupo, x = repeticao[1], y = repeticao[2])
-      })
-    }, error = function(e) {
-      showNotification(
-        paste0("Erro ao gerar repetições para grupo '", grupo, "': ", e$message),
-        type = "error"
-      )
-      return(NULL)
-    })
+    repeticoes_grupo <- tryCatch(
+      {
+        lapply(1:repeticoes, function(i) {
+          repeticao <- MASS::mvrnorm(1, mu = media, Sigma = matriz_cov)
+          data.frame(serie = i, ponto = grupo, x = repeticao[1], y = repeticao[2])
+        })
+      },
+      error = function(e) {
+        showNotification(
+          paste0("Erro ao gerar repetições para grupo '", grupo, "': ", e$message),
+          type = "error"
+        )
+        return(NULL)
+      }
+    )
 
     if (!is.null(repeticoes_grupo)) {
       repeticoes_geradas <- c(repeticoes_geradas, repeticoes_grupo)

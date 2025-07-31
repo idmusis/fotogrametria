@@ -139,7 +139,7 @@ ui <- shinydashboard::dashboardPage(
       ),
       actionButton("calcular_botao", "Calcular!"),
       tags$hr(),
-      downloadButton("baixar_graficos", "Baixar gráficos (.zip)")
+      downloadButton("baixar_graficos", "Baixar gráficos e dados (.zip)")
     )
   ),
   shinydashboard::dashboardBody(
