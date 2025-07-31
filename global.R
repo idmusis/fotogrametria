@@ -167,12 +167,31 @@ gerar_repeticoes <- function(dados_originais, repeticoes) {
     media <- colMeans(dados_grupo[, c("x", "y")]) # Media do grupo atual
     matriz_cov <- cov(dados_grupo[, c("x", "y")]) # Matriz de covariancia do grupo atual
 
-    repeticoes_grupo <- lapply(1:repeticoes, function(i) {
-      repeticao <- MASS::mvrnorm(1, mu = media, Sigma = matriz_cov)
-      data.frame(serie = i, ponto = grupo, x = repeticao[1], y = repeticao[2])
+    # Verificação de validade da matriz de covariância
+    if (any(!is.finite(matriz_cov)) || any(is.na(matriz_cov))) {
+      showNotification(
+        paste0("Erro: matriz de covariância inválida para o grupo '", grupo, "'."),
+        type = "error"
+      )
+      next
+    }
+
+    repeticoes_grupo <- tryCatch({
+      lapply(1:repeticoes, function(i) {
+        repeticao <- MASS::mvrnorm(1, mu = media, Sigma = matriz_cov)
+        data.frame(serie = i, ponto = grupo, x = repeticao[1], y = repeticao[2])
+      })
+    }, error = function(e) {
+      showNotification(
+        paste0("Erro ao gerar repetições para grupo '", grupo, "': ", e$message),
+        type = "error"
+      )
+      return(NULL)
     })
 
-    repeticoes_geradas <- c(repeticoes_geradas, repeticoes_grupo)
+    if (!is.null(repeticoes_grupo)) {
+      repeticoes_geradas <- c(repeticoes_geradas, repeticoes_grupo)
+    }
   }
   # Junta todas as repeticoes em um unico data frame
   repeticoes_geradas <- do.call(rbind, repeticoes_geradas)

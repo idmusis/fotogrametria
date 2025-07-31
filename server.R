@@ -346,7 +346,7 @@ server <- function(session, input, output) {
     dados <- coords()
 
     # Se não tiver pontos marcados suficientes, tenta carregar o CSV
-    if (is.null(dados) || nrow(dados) < 5) {
+    if (is.null(dados) || nrow(dados) < 8) {
       dados_csv <- tryCatch(dataInput(), error = function(e) NULL)
       if (!is.null(dados_csv) && all(c("x", "y", "ponto") %in% names(dados_csv))) {
         dados <- dados_csv
@@ -369,15 +369,50 @@ server <- function(session, input, output) {
 
       # Gerar as repeticoes
       repeticoes_geradas <- gerar_repeticoes(dados, input$rep_mc)
+
+      if (is.null(repeticoes_geradas) || nrow(repeticoes_geradas) == 0) {
+        showNotification("Erro: não foi possível gerar repetições.", type = "error")
+        return()
+      }
+
       resultados <- repeticoes_geradas %>%
-        group_by(serie) %>%
-        dplyr::do(modelo = deming::deming(y ~ x, data = .))
+        dplyr::group_by(serie) %>%
+        dplyr::group_map(
+          ~ tryCatch(
+            list(modelo = deming::deming(y ~ x, data = .x)),
+            error = function(e) NULL
+          ),
+          .keep = TRUE
+        )
+
+      # Filtrar modelos válidos
+      modelos_validos <- purrr::compact(resultados)
+
+      if (length(modelos_validos) == 0) {
+        showNotification("Erro: nenhum modelo Deming pôde ser ajustado.", type = "error")
+        return()
+      }
 
       # Extrair os coeficientes de cada regressao e salva-los em uma lista
-      coeficientes <- lapply(resultados$modelo, coefficients)
+      coeficientes <- purrr::map(modelos_validos, ~ tryCatch(
+        coefficients(.x$modelo),
+        error = function(e) NULL
+      )) %>% purrr::compact()
+
+      if (length(coeficientes) == 0) {
+        showNotification("Erro: Não foi possível extrair coeficientes dos modelos.", type = "error")
+        return()
+      }
 
       # Converter a lista em um data frame
-      df_coeficientes <- do.call(rbind, coeficientes)
+      df_coeficientes <- tryCatch(
+        do.call(rbind, coeficientes),
+        error = function(e) {
+          return(NULL)
+        }
+      )
+
+      if (is.null(df_coeficientes)) return()
 
       # Calcular a media e os intervalos de confianca dos coeficientes
       media_coeficientes <- colMeans(df_coeficientes)
@@ -548,6 +583,7 @@ server <- function(session, input, output) {
 
       #### Plotar o grafico de dispersao com cores identificando os grupos e series -------
       scatterPlot <- reactive({
+        req(repeticoes_geradas_rotacionadas)
         p <- ggplot(repeticoes_geradas_rotacionadas, aes(x = x, y = y)) +
           geom_hex(bins = 120, aes(fill = ..count..)) +
           scale_fill_gradient(name = "Frequências", low = paleta[7], high = "black") +
@@ -680,6 +716,7 @@ server <- function(session, input, output) {
 
       #### Plot histogramaDistancia ---------
       histogramDistancia <- reactive({
+        req(resultados)
         deslocamento <- as.data.frame(resultados$distancia * 1000)
         colnames(deslocamento) <- "d"
 
