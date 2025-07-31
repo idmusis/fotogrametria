@@ -379,8 +379,8 @@ server <- function(session, input, output) {
         return()
       }
 
-      resultados <- repeticoes_geradas %>%
-        dplyr::group_by(serie) %>%
+      resultados <- repeticoes_geradas |>
+        dplyr::group_by(serie) |>
         dplyr::group_map(
           ~ tryCatch(
             list(modelo = deming::deming(y ~ x, data = .x)),
@@ -401,7 +401,7 @@ server <- function(session, input, output) {
       coeficientes <- purrr::map(modelos_validos, ~ tryCatch(
         coefficients(.x$modelo),
         error = function(e) NULL
-      )) %>% purrr::compact()
+      )) |> purrr::compact()
 
       if (length(coeficientes) == 0) {
         showNotification("Erro: Não foi possível extrair coeficientes dos modelos.", type = "error")
@@ -431,12 +431,12 @@ server <- function(session, input, output) {
       inclinacao <- media_coeficientes[2]
 
       # Calcular o centro de gravidade por 'ponto'
-      cg <<- repeticoes_geradas %>%
-        dplyr::group_by(ponto) %>%
+      cg <<- repeticoes_geradas |>
+        dplyr::group_by(ponto) |>
         dplyr::summarise(centro_gravidade_x = mean(x), centro_gravidade_y = mean(y))
 
       # Calcular o ponto na reta de regressao mais proximo do centro de gravidade
-      centros_gravidade <- cg %>%
+      centros_gravidade <- cg |>
         dplyr::mutate(
           projecao_x = (centro_gravidade_x + inclinacao * centro_gravidade_y - inclinacao * intercepto) / (1 + inclinacao^2),
           projecao_y = inclinacao * projecao_x + intercepto
@@ -556,8 +556,8 @@ server <- function(session, input, output) {
         cg_aux <- rotacionar_pontos(cg_aux[, c(2, 3)], angulo)
         cg_aux <- cg_aux[, 1]
         colnames(cg_aux) <- "rot"
-        cg_aux <- cg_aux %>%
-          dplyr::arrange(rot) %>%
+        cg_aux <- cg_aux |>
+          dplyr::arrange(rot) |>
           dplyr::mutate(label = LETTERS[1:n()])
 
         spline_data <- smooth.spline(resultados$rot, resultados$cinza, cv = TRUE)
@@ -582,8 +582,8 @@ server <- function(session, input, output) {
         p <- dispersaoCinza()
 
         message("plot dispersao_cinza finalizado")
-        p %>%
-          plotly::ggplotly() %>%
+        p |>
+          plotly::ggplotly() |>
           config_plotly()
       })
 
@@ -609,8 +609,8 @@ server <- function(session, input, output) {
         p <- scatterPlot()
 
         message("scatterplot finalizado")
-        p %>%
-          plotly::ggplotly() %>%
+        p |>
+          plotly::ggplotly() |>
           config_plotly()
       })
 
@@ -619,15 +619,15 @@ server <- function(session, input, output) {
         req(repeticoes_geradas)
         # Histograma
         # Ordenar os dados por 'serie' e 'ponto'
-        repeticoes_geradas <- repeticoes_geradas %>%
+        repeticoes_geradas <- repeticoes_geradas |>
           dplyr::arrange(serie, ponto)
 
         # Agrupar os dados por 'serie' e aplicar a funcao 'distancia' a cada grupo
-        resultados <<- repeticoes_geradas %>%
-          dplyr::group_by(serie) %>%
-          dplyr::summarise(Ax = x[1], Ay = y[1], Bx = x[2], By = y[2], Cx = x[3], Cy = y[3], Dx = x[4], Dy = y[4]) %>%
-          dplyr::rowwise() %>%
-          dplyr::mutate(distancia = distancia(Ax, Ay, Bx, By, Cx, Cy, Dx, Dy, l)) %>%
+        resultados <<- repeticoes_geradas |>
+          dplyr::group_by(serie) |>
+          dplyr::summarise(Ax = x[1], Ay = y[1], Bx = x[2], By = y[2], Cx = x[3], Cy = y[3], Dx = x[4], Dy = y[4]) |>
+          dplyr::rowwise() |>
+          dplyr::mutate(distancia = distancia(Ax, Ay, Bx, By, Cx, Cy, Dx, Dy, l)) |>
           dplyr::ungroup()
 
         # Remove valores NA e calcula a velocidade
@@ -669,14 +669,14 @@ server <- function(session, input, output) {
 
         y_max <- max(ggplot_build(p1)$data[[1]]$count, na.rm = TRUE) * 1.05
 
-        x_gap <- range(c(media, percentis), na.rm = TRUE) %>%
+        x_gap <- range(c(media, percentis), na.rm = TRUE) |>
           diff() * 0.04
 
         y_gap <- range(c(
           media,
           (1 - input$nc) / 2,
           1 - (1 - input$nc) / 2
-        ), na.rm = TRUE) %>%
+        ), na.rm = TRUE) |>
           diff() * 0.04
 
         p1 <- p1 +
@@ -726,7 +726,7 @@ server <- function(session, input, output) {
         g2 <- plotly::ggplotly(p2)
 
         message("plot de histograma finalizado")
-        plotly::subplot(g1, g2, nrows = 2, shareX = TRUE, heights = c(0.8, 0.2), titleY = TRUE) %>%
+        plotly::subplot(g1, g2, nrows = 2, shareX = TRUE, heights = c(0.8, 0.2), titleY = TRUE) |>
           config_plotly()
       })
 
@@ -778,14 +778,14 @@ server <- function(session, input, output) {
           ) +
           theme_minimal(base_size = 13)
 
-        x_gap <- range(c(media, percentil), na.rm = TRUE) %>%
+        x_gap <- range(c(media, percentil), na.rm = TRUE) |>
           diff() * 0.04
 
         y_gap <- range(c(
           percentil_media,
           (1 - input$nc) / 2,
           1 - (1 - input$nc) / 2
-        ), na.rm = TRUE) %>%
+        ), na.rm = TRUE) |>
           diff() * 0.04
 
         p <- p + annotate("text",
@@ -825,8 +825,8 @@ server <- function(session, input, output) {
         p <- histogramDistancia()
 
         message("plot histogram_distance finalizado")
-        p %>%
-          plotly::ggplotly() %>%
+        p |>
+          plotly::ggplotly() |>
           config_plotly()
       })
 
